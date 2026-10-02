@@ -75,6 +75,8 @@ export interface GLink extends SimulationLinkDatum<GNode> {
   target: string | GNode;
   /** Crosses between clusters — drawn dashed, never pulls nodes out of their box. */
   bridge?: boolean;
+  /** Structural line (admin → team member). Drawn, but exerts no pull: positions are laid out. */
+  spoke?: boolean;
 }
 
 export interface GraphModel {
@@ -136,10 +138,11 @@ export function buildGraph(org: Org, viewer: Viewer, scope: Scope): GraphModel {
   switch (scope.level) {
     case 'org':
       return buildOrg(org, viewer, items, rand);
+    // Three levels, one per role. A squad scope (never set by the UI) shows its whole team.
     case 'department':
-      return buildDepartment(org, viewer, scope.id, items, rand);
+      return buildTeamView(org, viewer, scope.id, items, rand);
     case 'team':
-      return buildTeam(org, viewer, scope.id, items, rand);
+      return buildTeamView(org, viewer, getTeam(scope.id)?.departmentId ?? scope.id, items, rand);
     case 'member':
       return buildMember(org, viewer, scope.id, items, rand);
   }
@@ -196,35 +199,30 @@ function buildOrg(org: Org, viewer: Viewer, items: BrainItem[], rand: () => numb
 
   org.departments.forEach((d, i) => {
     const r = rects[i];
+    const members = org.people.filter((p) => p.departmentId === d.id && p.id !== d.headId);
     const box: Box = {
-      id: d.id, ...r, hue: d.hue, title: d.name,
-      subtitle: `${org.people.filter((p) => p.departmentId === d.id).length} people · ${d.teamIds.length} teams`,
+      id: d.id, ...r, hue: d.hue, title: `${d.name} team`,
+      subtitle: `Led by ${getPerson(d.headId)?.name} · ${members.length + 1} people`,
       drill: canViewScope(org, viewer, { level: 'department', id: d.id }) ? { level: 'department', id: d.id } : null,
     };
     boxes.push(box);
 
     const head = personNode(getPerson(d.headId)!, box, 11, true);
-    head.tx = box.x + box.w / 2;
-    head.ty = box.y + box.h / 2 + 10;
+    head.fx = box.x + box.w / 2;
+    head.fy = box.y + box.h / 2 + 14;
     nodes.push(head);
     people.set(d.headId, head);
     links.push({ id: `org>${d.id}`, source: ownerNode.id, target: head.id, bridge: true });
 
-    // Teams sit at evenly spaced points around the head, so each team reads as its own sub-brain.
-    d.teamIds.forEach((tid, ti) => {
-      const team = getTeam(tid)!;
-      const angle = (ti / d.teamIds.length) * Math.PI * 2 - Math.PI / 2;
-      const tx = head.tx! + Math.cos(angle) * box.w * 0.3;
-      const ty = head.ty! + Math.sin(angle) * box.h * 0.27;
-      team.memberIds.forEach((mid, mi) => {
-        const n = personNode(getPerson(mid)!, box, mi === 0 ? 7.5 : 6);
-        n.color = hsl(d.hue, 50 + ti * 12);
-        n.tx = tx;
-        n.ty = ty;
-        nodes.push(n);
-        people.set(mid, n);
-        links.push({ id: `${n.id}>${mi === 0 ? head.id : `p:${team.leadId}`}`, source: n.id, target: mi === 0 ? head.id : `p:${team.leadId}` });
-      });
+    // The team's people ring their admin, each with their own small brain of work.
+    members.forEach((p, mi) => {
+      const angle = (mi / members.length) * Math.PI * 2 - Math.PI / 2;
+      const n = personNode(p, box, 5.5);
+      n.fx = head.fx! + Math.cos(angle) * box.w * 0.3;
+      n.fy = head.fy! + Math.sin(angle) * box.h * 0.27;
+      nodes.push(n);
+      people.set(p.id, n);
+      links.push({ id: `${n.id}>${head.id}`, source: n.id, target: head.id, spoke: true });
     });
   });
 
@@ -250,88 +248,55 @@ function buildOrg(org: Org, viewer: Viewer, items: BrainItem[], rand: () => numb
   return finish(nodes, links, boxes, true, 30, rand);
 }
 
-function buildDepartment(org: Org, viewer: Viewer, deptId: string, items: BrainItem[], rand: () => number): GraphModel {
+function buildTeamView(org: Org, viewer: Viewer, deptId: string, items: BrainItem[], rand: () => number): GraphModel {
   const d = getDepartment(deptId)!;
   const head = getPerson(d.headId)!;
-  const core = coreBox('core', head.name, `${head.title} · ${d.name}`, d.hue, canViewScope(org, viewer, { level: 'member', id: head.id }) ? { level: 'member', id: head.id } : null);
-  const rects = grid(d.teamIds.length, lowerArea());
-  const boxes: Box[] = [core];
+  const members = org.people.filter((p) => p.departmentId === deptId && p.id !== head.id);
+  const box: Box = {
+    id: d.id, x: PAD, y: TOP, w: CANVAS.w - PAD * 2, h: CANVAS.h - TOP - BOTTOM, hue: d.hue,
+    title: `${d.name} team`,
+    subtitle: `Led by ${head.name} · ${members.length + 1} people · ${items.length} memories`,
+    drill: null,
+  };
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2 + 16;
   const nodes: GNode[] = [];
   const links: GLink[] = [];
   const people = new Map<string, GNode>();
 
-  const headNode = personNode(head, core, 15, true);
-  headNode.fx = core.x + core.w / 2;
-  headNode.fy = core.y + core.h / 2 + 12;
+  // One team brain: the admin at the centre, everyone else on a fixed ring, so the
+  // layout is calm and stable; only the work settles around them.
+  const headNode = personNode(head, box, 22, true);
+  headNode.fx = cx;
+  headNode.fy = cy;
   nodes.push(headNode);
   people.set(head.id, headNode);
 
-  d.teamIds.forEach((tid, i) => {
-    const t = getTeam(tid)!;
-    const box: Box = {
-      id: t.id, ...rects[i], hue: d.hue, title: t.name,
-      subtitle: `Led by ${getPerson(t.leadId)?.name} · ${t.memberIds.length} people`,
-      drill: { level: 'team', id: t.id },
-    };
-    boxes.push(box);
-    t.memberIds.forEach((mid, mi) => {
-      const n = personNode(getPerson(mid)!, box, mi === 0 ? 11 : 8.5, true);
-      const angle = (mi / t.memberIds.length) * Math.PI * 2;
-      n.tx = box.x + box.w / 2 + Math.cos(angle) * box.w * 0.24;
-      n.ty = box.y + box.h / 2 + 14 + Math.sin(angle) * box.h * 0.24;
-      nodes.push(n);
-      people.set(mid, n);
-      links.push(mi === 0
-        ? { id: `${headNode.id}>${n.id}`, source: headNode.id, target: n.id, bridge: true }
-        : { id: `${n.id}>p:${t.leadId}`, source: n.id, target: `p:${t.leadId}` });
-    });
+  members.forEach((p, i) => {
+    const angle = (i / members.length) * Math.PI * 2 - Math.PI / 2;
+    const n = personNode(p, box, 11, true);
+    n.fx = cx + Math.cos(angle) * box.w * 0.36;
+    n.fy = cy + Math.sin(angle) * box.h * 0.32;
+    nodes.push(n);
+    people.set(p.id, n);
+    links.push({ id: `${headNode.id}>${n.id}`, source: headNode.id, target: n.id, spoke: true });
   });
 
   for (const it of items) {
     const anchor = it.ownerIds.map((o) => people.get(o)).find(Boolean);
     if (!anchor) continue;
-    const n = itemNode(it, anchor.box, 4);
-    n.tx = anchor.tx ?? anchor.fx ?? undefined;
-    n.ty = anchor.ty ?? anchor.fy ?? undefined;
+    // Clients, projects and decisions are the team's shared context: larger and labelled.
+    const key = it.kind === 'client' || it.kind === 'project' || it.kind === 'decision';
+    const n = itemNode(it, box, key ? 7.5 : 4.5);
+    n.label = key && !it.id.startsWith('bg-');
+    n.tx = anchor.fx ?? undefined;
+    n.ty = anchor.fy ?? undefined;
     nodes.push(n);
+    // Shared work links to every owner, so it settles between the people who share it.
     links.push(...ownerLinks(n, people));
   }
 
-  return finish(nodes, links, boxes, false, 48, rand);
-}
-
-function buildTeam(org: Org, viewer: Viewer, teamId: string, items: BrainItem[], rand: () => number): GraphModel {
-  const t = getTeam(teamId)!;
-  const hue = getDepartment(t.departmentId)?.hue ?? 205;
-  const rects = grid(t.memberIds.length, { x: PAD, y: TOP, w: CANVAS.w - PAD * 2, h: CANVAS.h - TOP - BOTTOM });
-  const boxes: Box[] = [];
-  const nodes: GNode[] = [];
-  const links: GLink[] = [];
-  const people = new Map<string, GNode>();
-
-  t.memberIds.forEach((mid, i) => {
-    const p = getPerson(mid)!;
-    const box: Box = {
-      id: mid, ...rects[i], hue, title: p.name, subtitle: p.title,
-      drill: canViewScope(org, viewer, { level: 'member', id: mid }) ? { level: 'member', id: mid } : null,
-    };
-    boxes.push(box);
-    const n = personNode(p, box, 15, true);
-    n.fx = box.x + box.w / 2;
-    n.fy = box.y + box.h / 2 + 14;
-    nodes.push(n);
-    people.set(mid, n);
-  });
-
-  for (const it of items) {
-    const anchor = it.ownerIds.map((o) => people.get(o)).find(Boolean);
-    if (!anchor) continue;
-    const n = itemNode(it, anchor.box, it.kind === 'client' || it.kind === 'project' ? 8 : 6.5);
-    nodes.push(n);
-    links.push(...ownerLinks(n, people));
-  }
-
-  return finish(nodes, links, boxes, false, 95, rand);
+  return finish(nodes, links, [box], false, 56, rand);
 }
 
 function buildMember(org: Org, viewer: Viewer, personId: string, items: BrainItem[], rand: () => number): GraphModel {

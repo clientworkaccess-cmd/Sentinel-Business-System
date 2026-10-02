@@ -59,10 +59,11 @@ export function BrainGraph({
           .id((n) => n.id)
           .distance((l) => (l.bridge ? 200 : (l.target as GNode).type === 'person' && (l.source as GNode).type === 'person' ? 70 : spread))
           // Bridges are drawn but never pull: a cross-cluster link must not drag a node out of its box.
-          .strength((l) => (l.bridge ? 0 : dense ? 0.5 : 0.35)),
+          .strength((l) => (l.bridge || l.spoke ? 0 : dense ? 0.5 : 0.35)),
       )
       .force('charge', forceManyBody<GNode>().strength(dense ? -22 : -60).distanceMax(dense ? 110 : 260))
-      .force('collide', forceCollide<GNode>((n) => n.r + (dense ? 2.2 : n.label ? 14 : 4)).iterations(2))
+      // Labelled nodes get room for their label, not just their dot: labels are wide.
+      .force('collide', forceCollide<GNode>((n) => (dense ? n.r + 2.2 : n.label ? Math.max(n.r + 22, labelHalfWidth(n)) : n.r + 4)).iterations(2))
       .force('x', forceX<GNode>((n) => n.tx ?? n.box.x + n.box.w / 2).strength((n) => (n.tx != null ? 0.09 : 0.03)))
       .force('y', forceY<GNode>((n) => n.ty ?? n.box.y + n.box.h / 2).strength((n) => (n.tx != null ? 0.09 : 0.03)))
       .alphaDecay(0.035)
@@ -208,7 +209,7 @@ export function BrainGraph({
           const [s, t] = endpoints(l);
           if (s.x == null || t.x == null) return null;
           const on = lit ? lit.has(s.id) && lit.has(t.id) : false;
-          const opacity = lit ? (on ? 0.85 : 0.04) : l.bridge ? 0.18 : model.dense ? 0.14 : 0.26;
+          const opacity = lit ? (on ? 0.85 : 0.04) : l.bridge ? 0.18 : l.spoke ? 0.12 : model.dense ? 0.14 : 0.26;
           // Bridges curve, so links between clusters read as arcs over the gap rather than lines through boxes.
           const d = l.bridge
             ? `M${s.x},${s.y} Q${(s.x + t.x!) / 2},${Math.min(s.y!, t.y!) - 40} ${t.x},${t.y}`
@@ -292,6 +293,12 @@ export function BrainGraph({
 
 function truncate(s: string, n: number) {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+}
+
+/** Rough half-width of a node's label in canvas units (about 6.4 units per character at 11.5–13px). */
+function labelHalfWidth(n: GNode): number {
+  const text = n.person ? truncate(n.person.name, 24) : n.item ? truncate(n.item.title, 30) : '';
+  return text.length * 3.2;
 }
 
 /** In-canvas tooltip, so it scales with the zoom and never clips at the panel edge. */

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MousePointerClick } from 'lucide-react';
-import { ORG, getPerson, getTeam } from '@/demo/org';
+import { ORG, getDepartment, getPerson } from '@/demo/org';
 import { canViewScope, itemsInScope, peopleInScope, scopePath } from '@/demo/visibility';
 import type { BrainItem, ItemKind, Scope, ScopeLevel } from '@/demo/types';
 import { useBrainStore } from '@/stores/useBrainStore';
@@ -12,35 +12,30 @@ import { KIND_META } from '../meta';
 import { BrainGraph } from './BrainGraph';
 import { KIND_COLORS, STATUS_RING, buildGraph } from './model';
 
+/** Three levels, one per role: the Owner's business, an Admin's team, a Member's own brain. */
 const LEVELS: { level: ScopeLevel; label: string }[] = [
-  { level: 'org', label: 'Organization' },
-  { level: 'department', label: 'Department' },
-  { level: 'team', label: 'Team' },
+  { level: 'org', label: 'Business' },
+  { level: 'department', label: 'Team' },
   { level: 'member', label: 'Individual' },
 ];
 
-/** Where the level switcher goes: stay on the current branch of the tree where possible. */
+/** Where the level switcher goes: stay on the current branch where possible. */
 function targetFor(level: ScopeLevel, current: Scope, viewerId: string): Scope {
   const path = scopePath(ORG, current);
   const at = (l: ScopeLevel) => path.find((s) => s.level === l);
   const me = getPerson(viewerId);
   switch (level) {
-    case 'org':
-      return { level: 'org', id: ORG.id };
     case 'department':
       return at('department') ?? { level: 'department', id: me?.departmentId ?? ORG.departments[0].id };
-    case 'team': {
-      const t = at('team');
-      if (t) return t;
-      const deptId = at('department')?.id ?? me?.departmentId ?? ORG.departments[0].id;
-      return { level: 'team', id: me?.teamId ?? ORG.teams.find((x) => x.departmentId === deptId)!.id };
-    }
     case 'member': {
       const m = at('member');
       if (m) return m;
-      const teamId = at('team')?.id;
-      return { level: 'member', id: teamId ? getTeam(teamId)!.leadId : viewerId };
+      // From a team, step into its admin; from the business view, into yourself.
+      const deptId = at('department')?.id;
+      return { level: 'member', id: deptId ? getDepartment(deptId)!.headId : viewerId };
     }
+    default:
+      return { level: 'org', id: ORG.id };
   }
 }
 
@@ -131,7 +126,7 @@ export function GraphView() {
 
       <div className="absolute bottom-4 left-4 hidden md:flex items-center gap-2 text-[11px] text-white/45">
         <MousePointerClick className="w-3.5 h-3.5" />
-        {scope.level === 'member' ? 'Click a memory to open it · hover to trace connections' : 'Click a cluster to zoom in · hover to trace connections'}
+        {scope.level === 'member' ? 'Click a memory to open it · hover to trace connections' : scope.level === 'org' ? 'Click a team to zoom in · hover to trace connections' : 'Click a person to open their brain · hover to trace connections'}
       </div>
 
       <ItemDrawer item={openItem} onClose={() => setOpenItem(null)} onOpenItem={setOpenItem} />
