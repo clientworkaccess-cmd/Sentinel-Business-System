@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.1] - 2026-10-03
+
+### Added
+- Live Connect in the gallery (backend auth mode only): Gmail, Google Calendar, Google Drive, Google Docs and Slack call the #33 API, send the browser to Composio's consent screen, and show real status, last sync, item counts, Sync now, Reconnect and Disconnect (which removes what it synced). Every other card says "Coming soon" in that mode rather than claiming a fake connection.
+- Demo mode (the default, used on stage) is unchanged and never contacts a provider. Watch out: one consent request per attempt (`inflight` in ConnectModal), because a second request replaces the first Composio link and the callback then rejects the stale one.
+
 ## [0.21.0] - 2026-10-02
 
 ### Added
