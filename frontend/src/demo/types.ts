@@ -6,6 +6,12 @@
  * removing one breaks other agents' work, so do that only through an issue.
  */
 
+/*
+ * Three levels, one per role (Alyan, PR #23): Business (Owner) → Team (Admin) →
+ * Individual (Member). In the data an Admin's team is a `Department`; the finer
+ * `Team` records are squads, shown only as a label on a person, never as a level
+ * the UI navigates to.
+ */
 export type Role = 'owner' | 'admin' | 'member';
 export type ScopeLevel = 'org' | 'department' | 'team' | 'member';
 
