@@ -76,10 +76,16 @@ def _read(row: ConnectorStatus) -> ConnectorRead:
 
 
 @router.get("", response_model=list[ConnectorRead], response_model_by_alias=True)
-def list_connectors(db: DbSession, current_user: CurrentUser, viewer: Viewer) -> list[ConnectorRead]:
+def list_connectors(
+    db: DbSession, current_user: CurrentUser, viewer: Viewer, background: BackgroundTasks
+) -> list[ConnectorRead]:
     """Live connectors and the caller's connection to each. Pending connections whose
     callback never arrived are settled here, so a closed tab does not strand them."""
-    return [_read(row) for row in ConnectionService(db, current_user, viewer).statuses()]
+    service = ConnectionService(db, current_user, viewer)
+    rows = [_read(row) for row in service.statuses()]
+    for connection_id in service.activated:
+        background.add_task(sync_connection, connection_id)
+    return rows
 
 
 @router.get("/connections", response_model=list[TeamConnection], response_model_by_alias=True)

@@ -97,7 +97,7 @@ class FakeGateway:
     # --- Composio -------------------------------------------------------------------
     def link(self, *, user_ref: str, toolkit: str, callback_url: str) -> LinkResult:
         self.n += 1
-        aid = f"ca_fake{self.n}"
+        aid = f"ca_fake{self.n}_{uuid.uuid4().hex[:8]}"
         self.accounts[aid] = {"status": "INITIATED", "user_id": user_ref, "toolkit": toolkit,
                               "callback": callback_url}
         return LinkResult(account_id=aid, redirect_url=f"https://connect.composio.dev/link/{aid}")
@@ -545,6 +545,7 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         db.refresh(conn)
         check("a pending connection whose callback never arrived is settled on read",
               conn.status is ConnectionStatus.ACTIVE, conn.status)
+        check("…and that read starts its sync", conn.last_synced_at is not None and conn.sync_started_at is None)
         check("an active connection cannot be connected twice",
               client.post(f"{C}/gmail/connect", headers=ah).status_code == 409)
 

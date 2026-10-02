@@ -75,6 +75,9 @@ class ConnectionService:
         self.user = user
         self.company_id = user.company_id
         self.visibility = visibility
+        #: Connections a status read found newly active. The route starts their
+        #: first sync, since no callback will.
+        self.activated: list[uuid.UUID] = []
 
     # --- reads -------------------------------------------------------------------------
 
@@ -124,7 +127,8 @@ class ConnectionService:
             return
         for connection in stale:
             try:
-                self._apply_account_state(connection, gateway.account(connection.composio_account_id))
+                if apply_account_state(connection, gateway.account(connection.composio_account_id)):
+                    self.activated.append(connection.id)
             except ProviderError:
                 continue
         self.db.commit()
@@ -230,9 +234,6 @@ class ConnectionService:
                                      Connection.user_id == self.user.id,
                                      Connection.connector_id == connector_id)
         ).scalar_one_or_none()
-
-    def _apply_account_state(self, connection: Connection, state) -> None:
-        apply_account_state(connection, state)
 
 
 def apply_account_state(connection: Connection, state) -> bool:
