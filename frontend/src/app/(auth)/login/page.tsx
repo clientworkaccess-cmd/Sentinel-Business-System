@@ -7,8 +7,11 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { apiErrorMessage } from '@/lib/api';
 import { ArrowRight } from 'lucide-react';
 import { BrandMark } from '@/components/ui';
+import { DemoLogin } from '@/components/auth';
+import { AUTH_MODE } from '@/lib/authMode';
 
-export default function LoginPage() {
+/** The original FastAPI login, used when NEXT_PUBLIC_AUTH_MODE=backend. Unchanged. */
+function BackendLogin() {
   const router = useRouter();
   const { login } = useAuthStore();
   const [email, setEmail] = useState('');
@@ -89,4 +92,9 @@ export default function LoginPage() {
       </div>
     </main>
   );
+}
+
+/** Demo sign-in until the backend is live (#25); the original login after. */
+export default function LoginPage() {
+  return AUTH_MODE === 'demo' ? <DemoLogin /> : <BackendLogin />;
 }

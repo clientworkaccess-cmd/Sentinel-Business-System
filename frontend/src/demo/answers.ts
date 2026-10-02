@@ -8,7 +8,7 @@
  *
  * Everything here respects visibility: it only ever reads `itemsInScope`.
  */
-import { ORG, getItem, getPerson } from './org';
+import { ORG, firstName, getItem, getPerson } from './org';
 import { SUGGESTED_PROMPTS } from './prompts';
 import { itemsInScope } from './visibility';
 import type { BrainItem, Role, Scope, Viewer } from './types';
@@ -139,7 +139,7 @@ Nothing internal is blocked on you.`,
     {
       text: `**One blocker: payment-SDK certification.**
 
-- Areeba and Hira can't finish certification because the **PSP sandbox returns 3-D Secure errors** on test cards. A ticket has been open with the PSP since **Sep 27**. Due **Oct 8**.
+- Alyan and Hira can't finish certification because the **PSP sandbox returns 3-D Secure errors** on test cards. A ticket has been open with the PSP since **Sep 27**. Due **Oct 8**.
 - Because of it, the launch moved **Oct 13 → Oct 20** in yesterday's Kestrel sync. There's no scope cut, and the client agreed on the call.
 - Everything else is moving: 78% of sprint scope is done, and design cut onboarding from 6 screens to 3 after elderly patients dropped off at the OTP step.
 
@@ -262,7 +262,7 @@ export function offlineAnswer(question: string, viewer: Viewer, scope: Scope): S
   }
 
   const lines = hits.map(({ item }) => {
-    const owners = item.ownerIds.map((id) => getPerson(id)?.name.split(' ')[0]).filter(Boolean).join(', ');
+    const owners = item.ownerIds.map((id) => firstName(getPerson(id))).filter(Boolean).join(', ');
     const status = item.status ? ` (${STATUS_WORDS[item.status]})` : '';
     const detail = item.summary ? `: ${item.summary}` : '';
     return `- **${item.title}**${status}${detail}${owners ? ` *Owner: ${owners}.*` : ''}`;

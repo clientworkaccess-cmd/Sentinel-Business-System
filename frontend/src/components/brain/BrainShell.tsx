@@ -1,16 +1,17 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  ArrowUpRight, ChevronRight, LayoutDashboard, Menu, MessageSquareText, Mic, Moon, Network, Plug, Sparkles, Sun, X,
+  ArrowUpRight, ChevronRight, LayoutDashboard, LogOut, Menu, MessageSquareText, Mic, Moon, Network, Plug, Sparkles, Sun, X,
 } from 'lucide-react';
 import { BrandLockup } from '@/components/ui';
 import { ORG, getPerson } from '@/demo/org';
 import { canViewScope, scopeLabel, scopePath } from '@/demo/visibility';
 import type { Role } from '@/demo/types';
 import { useBrainStore } from '@/stores/useBrainStore';
+import { useSessionStore } from '@/stores/useSessionStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { cn } from '@/lib/utils';
 import { Avatar } from './atoms';
@@ -40,17 +41,40 @@ const FULL_BLEED = ['/brain/graph', '/brain/chat'];
 
 export function BrainShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
   const { hydrateNav } = useUIStore();
+  const { status, session, hydrate } = useSessionStore();
+  const setRole = useBrainStore((s) => s.setRole);
+  const startedAs = useRef<string | null>(null);
 
   useEffect(() => {
     hydrateNav();
-  }, [hydrateNav]);
+    hydrate();
+  }, [hydrateNav, hydrate]);
+
+  // Every /brain page needs a signed-in viewer (#25). The signed-in role is only
+  // the starting view: the presenter can still switch roles from the top bar.
+  useEffect(() => {
+    if (status === 'signed_out') router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    if (status === 'signed_in' && session && startedAs.current !== session.personId) {
+      startedAs.current = session.personId;
+      setRole(session.role);
+    }
+  }, [status, session, pathname, router, setRole]);
 
   // A route change on mobile should never leave the drawer covering the page.
   useEffect(() => setNavOpen(false), [pathname]);
 
   const fullBleed = FULL_BLEED.some((p) => pathname.startsWith(p));
+
+  if (status !== 'signed_in') {
+    return (
+      <div className="brain-root min-h-screen bg-stone-canvas flex items-center justify-center" aria-busy="true">
+        <div className="animate-pulse"><BrandLockup size="lg" /></div>
+      </div>
+    );
+  }
 
   return (
     <div className="brain-root min-h-screen bg-stone-canvas text-ink-black flex">
@@ -75,6 +99,8 @@ export function BrainShell({ children }: { children: React.ReactNode }) {
 function Sidebar({ open, onClose, pathname }: { open: boolean; onClose: () => void; pathname: string }) {
   const { viewer } = useBrainStore();
   const me = getPerson(viewer.personId);
+  const router = useRouter();
+  const signOut = useSessionStore((s) => s.signOut);
 
   return (
     <>
@@ -128,10 +154,21 @@ function Sidebar({ open, onClose, pathname }: { open: boolean; onClose: () => vo
         <div className="p-4 border-t border-stone-border shrink-0">
           <div className="flex items-center gap-3">
             <Avatar person={me} size="md" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-ink-black truncate">{me?.name}</p>
               <p className="text-xs text-warm-gray truncate">{me?.title}</p>
             </div>
+            <button
+              onClick={() => {
+                signOut();
+                router.replace('/login');
+              }}
+              title="Sign out"
+              aria-label="Sign out"
+              className="p-2 rounded-full text-warm-gray hover:text-ink-black hover:bg-stone-border/40 transition shrink-0"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
           <p className="mt-3 text-[11px] text-ash-gray">{ROLE_SEES[viewer.role]}</p>
         </div>

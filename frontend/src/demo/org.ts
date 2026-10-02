@@ -16,8 +16,10 @@ import type { BrainItem, Department, Org, Person, Role, Team } from './types';
 const DOMAIN = 'arcline.pk';
 
 function initialsOf(name: string): string {
-  return name
-    .split(' ')
+  const words = name.split(' ');
+  // A one-word name ("Saim") still gets two letters, so every avatar reads the same weight.
+  if (words.length === 1) return name.slice(0, 2).toUpperCase();
+  return words
     .map((p) => p[0])
     .slice(0, 2)
     .join('')
@@ -64,7 +66,7 @@ const DEPARTMENT_SPECS: DepartmentSpec[] = [
     name: 'Engineering',
     hue: 205,
     description: 'Platform, mobile and web delivery for every client build.',
-    head: ['Ayesha Siddiqui', 'VP Engineering'],
+    head: ['Saim', 'VP Engineering'],
     teams: [
       {
         id: 'platform',
@@ -82,7 +84,7 @@ const DEPARTMENT_SPECS: DepartmentSpec[] = [
         name: 'Mobile',
         members: [
           ['Zain Abbas', 'Mobile Lead'],
-          ['Areeba Khan', 'iOS Engineer'],
+          ['Alyan Ali', 'iOS Engineer'],
           ['Hassan Raza', 'Android Engineer'],
           ['Noor Fatima', 'Flutter Engineer'],
           ['Saad Mirza', 'Mobile Engineer'],
@@ -218,7 +220,9 @@ const DEPARTMENT_SPECS: DepartmentSpec[] = [
   },
 ];
 
-const owner = person('Hamza Qureshi', 'Founder & CEO', 'owner');
+// The three demo sign-ins (#25) are Alyan's team, by his request: Owner Saif,
+// Admin Saim (Engineering), Member Alyan (Mobile). Everyone else is fictional.
+const owner = person('Syed Muhammad Saif', 'Founder & CEO', 'owner', { shortName: 'Saif', email: 'saif@arcline.pk' });
 
 const people: Person[] = [owner];
 const departments: Department[] = [];
@@ -291,7 +295,7 @@ const storyItems: BrainItem[] = [
   // Projects
   {
     id: 'proj-kestrel-v2', kind: 'project', title: 'Kestrel app v2', status: 'at_risk',
-    ownerIds: [P('Zain Abbas'), P('Areeba Khan'), P('Hassan Raza'), P('Noor Fatima')], teamId: 'mobile', departmentId: 'engineering', source: 'jira',
+    ownerIds: [P('Zain Abbas'), P('Alyan Ali'), P('Hassan Raza'), P('Noor Fatima')], teamId: 'mobile', departmentId: 'engineering', source: 'jira',
     relatedIds: ['client-kestrel'],
     summary: 'Patient app rebuild with in-app payments. 78% of sprint scope done. Launch now Oct 20 (was Oct 13).',
   },
@@ -337,7 +341,7 @@ const storyItems: BrainItem[] = [
   // Meetings
   {
     id: 'mtg-kestrel-sync', kind: 'meeting', title: 'Kestrel Health weekly sync', date: '2026-10-01', status: 'at_risk', external: true,
-    ownerIds: [P('Asad Mahmood'), P('Zain Abbas'), P('Areeba Khan'), P('Sana Malik')], teamId: 'client-success', departmentId: 'delivery', source: 'zoom',
+    ownerIds: [P('Asad Mahmood'), P('Zain Abbas'), P('Alyan Ali'), P('Sana Malik')], teamId: 'client-success', departmentId: 'delivery', source: 'zoom',
     relatedIds: ['client-kestrel', 'proj-kestrel-v2', 'dec-kestrel-launch'],
     summary: "Payment SDK certification with Kestrel's PSP is still pending. Agreed to move launch from Oct 13 to Oct 20. Kestrel's Dr. Nadia asked for a written revised timeline by Friday.",
   },
@@ -349,7 +353,7 @@ const storyItems: BrainItem[] = [
   },
   {
     id: 'mtg-leadership', kind: 'meeting', title: 'Leadership weekly', date: '2026-09-30',
-    ownerIds: [owner.id, P('Ayesha Siddiqui'), P('Bilal Ahmed'), P('Sana Malik'), P('Omar Farooq'), P('Fatima Raza')], departmentId: 'operations', source: 'fireflies',
+    ownerIds: [owner.id, P('Saim'), P('Bilal Ahmed'), P('Sana Malik'), P('Omar Farooq'), P('Fatima Raza')], departmentId: 'operations', source: 'fireflies',
     relatedIds: ['dec-aws-bahrain', 'dec-hiring', 'client-indus', 'client-kestrel'],
     summary: 'Approved AWS Bahrain migration. Opened 3 backend roles. Flagged Kestrel slip and Indus renewal as the two biggest risks this month.',
   },
@@ -361,7 +365,7 @@ const storyItems: BrainItem[] = [
   },
   {
     id: 'mtg-design-crit', kind: 'meeting', title: 'Design crit: Kestrel onboarding', date: '2026-09-30',
-    ownerIds: [P('Zoya Rehman'), P('Fahad Mustafa'), P('Anam Sheikh'), P('Areeba Khan')], teamId: 'design', departmentId: 'product', source: 'google_meet',
+    ownerIds: [P('Zoya Rehman'), P('Fahad Mustafa'), P('Anam Sheikh'), P('Alyan Ali')], teamId: 'design', departmentId: 'product', source: 'google_meet',
     relatedIds: ['proj-kestrel-v2'],
     summary: 'Cut onboarding from 6 screens to 3. Usability test showed elderly patients dropping at OTP step.',
   },
@@ -375,7 +379,7 @@ const storyItems: BrainItem[] = [
   },
   {
     id: 'dec-aws-bahrain', kind: 'decision', title: 'Migrate production to AWS Bahrain', date: '2026-09-30',
-    ownerIds: [owner.id, P('Ayesha Siddiqui')], departmentId: 'engineering', source: 'fireflies',
+    ownerIds: [owner.id, P('Saim')], departmentId: 'engineering', source: 'fireflies',
     relatedIds: ['proj-aws-bahrain'],
     summary: 'Approved: about 90ms lower latency for Gulf clients and data stays in-region. Budget +8% infra cost.',
   },
@@ -389,7 +393,7 @@ const storyItems: BrainItem[] = [
     id: 'dec-indus-discount', kind: 'decision', title: 'Indus renewal: offer 5% (not 10%) + SLA', date: '2026-10-01', status: 'pending_approval', external: true,
     ownerIds: [P('Omar Farooq'), P('Mahnoor Saleem')], teamId: 'sales', departmentId: 'growth', source: 'slack',
     relatedIds: ['client-indus', 'mtg-indus-renewal'],
-    summary: 'Proposed counter-offer: 5% discount plus a 4-hour support SLA. Waiting on Hamza before it goes to the client.',
+    summary: 'Proposed counter-offer: 5% discount plus a 4-hour support SLA. Waiting on Saif before it goes to the client.',
   },
   {
     id: 'dec-arc-tokens', kind: 'decision', title: 'All new client builds start on Arc v3', date: '2026-09-22',
@@ -400,7 +404,7 @@ const storyItems: BrainItem[] = [
   // Tasks
   {
     id: 'task-kestrel-sdk', kind: 'task', title: 'Finish payment SDK certification', date: '2026-10-08', status: 'blocked',
-    ownerIds: [P('Areeba Khan'), P('Hira Javed')], teamId: 'mobile', departmentId: 'engineering', source: 'jira',
+    ownerIds: [P('Alyan Ali'), P('Hira Javed')], teamId: 'mobile', departmentId: 'engineering', source: 'jira',
     relatedIds: ['proj-kestrel-v2'],
     summary: "Blocked: PSP sandbox returns 3-D Secure errors on test cards. Ticket open with the PSP since Sep 27.",
   },
@@ -480,13 +484,13 @@ const storyItems: BrainItem[] = [
   },
   {
     id: 'doc-eng-handbook', kind: 'document', title: 'Engineering handbook: releases & on-call', date: '2026-06-11',
-    ownerIds: [P('Ayesha Siddiqui')], departmentId: 'engineering', source: 'notion',
+    ownerIds: [P('Saim')], departmentId: 'engineering', source: 'notion',
   },
 
   // Threads
   {
     id: 'thr-kestrel-slack', kind: 'thread', title: '#kestrel-v2: PSP sandbox 3-D Secure errors', date: '2026-10-01',
-    ownerIds: [P('Areeba Khan'), P('Hira Javed'), P('Zain Abbas')], teamId: 'mobile', departmentId: 'engineering', source: 'slack',
+    ownerIds: [P('Alyan Ali'), P('Hira Javed'), P('Zain Abbas')], teamId: 'mobile', departmentId: 'engineering', source: 'slack',
     relatedIds: ['task-kestrel-sdk'],
   },
   {
@@ -701,9 +705,12 @@ export const getTeam = (id: string) => teamsById.get(id);
 export const getDepartment = (id: string) => departmentsById.get(id);
 export const getItem = (id: string) => itemsById.get(id);
 
+/** How the UI addresses someone: "Saif", not "Syed". */
+export const firstName = (p?: Person) => p?.shortName ?? p?.name.split(' ')[0] ?? '';
+
 /** The personas the role switcher steps into. */
 export const DEMO_PERSONAS: Record<'owner' | 'admin' | 'member', string> = {
   owner: owner.id,
-  admin: P('Ayesha Siddiqui'),
-  member: P('Areeba Khan'),
+  admin: P('Saim'),
+  member: P('Alyan Ali'),
 };

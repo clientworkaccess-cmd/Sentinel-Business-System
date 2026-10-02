@@ -6,7 +6,7 @@ import {
   ArrowUp, AudioLines, Check, Loader2, Mic, RotateCcw, ShieldCheck, Square, Volume2, VolumeX, X,
 } from 'lucide-react';
 import { BrandLockup, MarkdownText } from '@/components/ui';
-import { ORG, getItem, getPerson } from '@/demo/org';
+import { ORG, firstName, getItem, getPerson } from '@/demo/org';
 import { SUGGESTED_PROMPTS } from '@/demo/prompts';
 import { itemsInScope, scopeLabel } from '@/demo/visibility';
 import type { BrainItem } from '@/demo/types';
@@ -117,7 +117,7 @@ export function ChatView() {
         <div className="min-w-0">
           <p className="text-sm font-medium text-ink-black">Ask Sentinel</p>
           <p className="text-[11px] text-warm-gray truncate">
-            Answers from {memoryCount} memories {me?.name.split(' ')[0]} can see in {scopeLabel(ORG, scope)}
+            Answers from {memoryCount} memories {firstName(me)} can see in {scopeLabel(ORG, scope)}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -155,7 +155,7 @@ export function ChatView() {
       <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
           {messages.length === 0 ? (
-            <EmptyState firstName={me?.name.split(' ')[0] ?? ''} roleLabel={ROLE_LABEL[viewer.role]} prompts={SUGGESTED_PROMPTS[viewer.role]} onPick={send} />
+            <EmptyState firstName={firstName(me)} roleLabel={ROLE_LABEL[viewer.role]} prompts={SUGGESTED_PROMPTS[viewer.role]} onPick={send} />
           ) : (
             messages.map((m) =>
               m.role === 'user' ? (

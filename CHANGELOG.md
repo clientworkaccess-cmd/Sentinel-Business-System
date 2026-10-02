@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0] - 2026-10-02
+
+### Added
+- Demo login (#25): `/login` signs in as Owner, Admin or Member in one click (or `<name>@arcline.pk` / `demo1234`) with no backend, and `/brain` now requires a signed-in viewer. `NEXT_PUBLIC_AUTH_MODE=backend` restores the original FastAPI login unchanged.
+- At Alyan's request the three sign-ins are the team itself: Owner **Saif** (`saif@arcline.pk`), Admin **Saim** (Engineering), Member **Alyan** (Mobile). They replace the fictional Hamza, Ayesha and Areeba everywhere; use `firstName()` from `demo/org`, not `name.split(' ')[0]`, wherever the UI addresses someone.
+- Signing in only sets the starting role; the top-bar switcher still works for presenters. The demo session lives in `localStorage` (`sentinel:demo-session`) and is trusted only if it names a real person holding that role.
+
 ## [0.18.0] - 2026-10-02
 
 ### Added

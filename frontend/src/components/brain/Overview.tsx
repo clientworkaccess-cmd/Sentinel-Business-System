@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, ArrowUp, Network, Sparkles } from 'lucide-react';
-import { ORG, getDepartment, getItem, getPerson, getTeam } from '@/demo/org';
+import { ORG, firstName, getDepartment, getItem, getPerson, getTeam } from '@/demo/org';
 import { SUGGESTED_PROMPTS } from '@/demo/prompts';
 import { itemsInScope, peopleInScope, scopeLabel } from '@/demo/visibility';
 import type { BrainItem, ItemStatus, Scope } from '@/demo/types';
@@ -100,7 +100,7 @@ function Greeting({ scope }: { scope: Scope }) {
       <div>
         <p className="text-xs uppercase tracking-wider text-ash-gray">Friday, 2 October</p>
         <h1 className="font-display text-[34px] sm:text-[40px] leading-[1.1] text-ink-black mt-1">
-          {greeting}, {me?.name.split(' ')[0]}.
+          {greeting}, {firstName(me)}.
         </h1>
         <p className="text-sm text-warm-gray mt-2">
           Here is what Sentinel remembers about <span className="cyan-highlight">{looking}</span> today.
