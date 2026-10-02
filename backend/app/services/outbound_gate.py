@@ -171,7 +171,11 @@ class OutboundGate(TenantService):
     def get_or_404(self, message_id: uuid.UUID, *, lock: bool = False) -> OutboundMessage:
         stmt = self._scoped().where(OutboundMessage.id == message_id)
         if lock:
-            stmt = stmt.with_for_update()
+            # populate_existing: the row may already be in this session's identity map
+            # from an earlier unlocked read. Without it, SQLAlchemy hands back that cached
+            # copy — still "approved" after another request committed "sent" — and the
+            # message goes out twice. The lock only helps if we re-read under it.
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
         message = self.db.execute(stmt).scalar_one_or_none()
         if message is None:
             raise NotFoundError("Message not found.")
@@ -379,7 +383,16 @@ class OutboundGate(TenantService):
     def retry(self, message_id: uuid.UUID, *, requested_by: User) -> OutboundMessage:
         """Put a failed (or never-delivered) approved message back for dispatch."""
         message = self.get_or_404(message_id, lock=True)
-        if message.status not in (OutboundStatus.FAILED, OutboundStatus.APPROVED):
+        # Retryable: a failed send, or an approved message that was never handed to a
+        # sender (no connector yet — it carries a delivery_error and no sent_at). A
+        # plain APPROVED row is mid-dispatch or about to be; retrying it is how a
+        # double-click would send the same client email twice.
+        never_delivered = (
+            message.status is OutboundStatus.APPROVED
+            and message.delivery_error is not None
+            and message.sent_at is None
+        )
+        if message.status is not OutboundStatus.FAILED and not never_delivered:
             raise ConflictError(f"Only a failed or undelivered message can be retried; this one is {message.status.value}.")
         message.status = OutboundStatus.APPROVED
         message.delivery_error = None
@@ -406,7 +419,7 @@ class OutboundGate(TenantService):
         if sender is None:
             message.delivery_error = (
                 f"No {message.channel.value} connector is set up yet. The message is "
-                "approved and will go out once it is connected."
+                "approved; connect it, then press Retry to send."
             )
             self.db.flush()
             self._audit(message, "outbound.dispatch", status="skipped",

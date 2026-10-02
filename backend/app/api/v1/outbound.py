@@ -16,6 +16,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, Query, Response, status
 
 from app.dependencies import CompanyId, DbSession, OwnerOrAdminUser, Viewer
+from app.exceptions import ConflictError
 from app.models.enums import MessageAudience, OutboundStatus
 from app.schemas.outbound import (
     OutboundDraftCreate,
@@ -40,8 +41,14 @@ Gate = Annotated[OutboundGate, Depends(get_outbound_gate)]
 def _dispatch_if_cleared(gate: OutboundGate, db: DbSession, message_id: uuid.UUID) -> OutboundMessageRead:
     message = gate.get_or_404(message_id)
     if message.status is OutboundStatus.APPROVED:
-        message = gate.dispatch(message_id)
-        db.commit()
+        try:
+            message = gate.dispatch(message_id)
+            db.commit()
+        except ConflictError:
+            # Another request sent (or failed) it while we waited for the row lock —
+            # the lock doing its job. Report the current state rather than a 409.
+            db.rollback()
+            message = gate.get_or_404(message_id)
         db.refresh(message)
     return OutboundMessageRead.model_validate(message)
 
