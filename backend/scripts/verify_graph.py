@@ -234,6 +234,18 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         r = client.get(f"{G}/search", headers=sh, params={"q": "what is Hira working on"})
         check("a named teammate seeds their work for their Admin", r.status_code == 200, r.text[:200])
 
+        # Transcript facts cite meetings by title only (#29 review). A shared title
+        # must not attribute a fact to the visible meeting of that name.
+        from app.services.graph_service import Snapshot
+        from app.services.hybrid_retrieval import HybridRetriever
+
+        shared = Snapshot(ambiguous_meeting_titles=frozenset({"Weekly Standup"}))
+        check("a fact citing a title two meetings share is pinned to neither",
+              HybridRetriever._trace("Meeting: Weekly Standup", shared, {"Weekly Standup": ["meeting:x"]}) == [])
+        check("…while a unique title still traces",
+              HybridRetriever._trace("Meeting: Mobile Standup", shared, {"Mobile Standup": ["meeting:y"]})
+              == ["meeting:y"])
+
         from app.agentic_ai.tools.graph_tools import create_graph_tools
 
         db.expire_all()

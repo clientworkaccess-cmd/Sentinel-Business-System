@@ -131,7 +131,13 @@ class HybridRetriever:
                 return []
             return [node] if node in snap.items else []
         if source_ref.startswith(MEETING_SOURCE_PREFIX):
-            return meetings_by_title.get(source_ref[len(MEETING_SOURCE_PREFIX):], [])
+            # Transcript facts cite a meeting only by title. If two meetings share it
+            # (one possibly out of reach), the fact can't be pinned to the visible one
+            # — attributing it would leak another team's meeting (#29 review).
+            title = source_ref[len(MEETING_SOURCE_PREFIX):]
+            if title in snap.ambiguous_meeting_titles:
+                return []
+            return meetings_by_title.get(title, [])
         return []
 
 

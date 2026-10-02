@@ -22,7 +22,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.visibility import Visibility
@@ -31,7 +31,7 @@ from app.knowledge.store import get_knowledge_store
 from app.models.brain import BrainItem
 from app.models.company import Company
 from app.models.enums import BrainItemKind, BrainItemStatus, TaskStatus
-from app.models.meeting import TranscriptSegment
+from app.models.meeting import Meeting, TranscriptSegment
 from app.models.task import Task
 from app.models.user import User
 from app.repositories.brain import BrainItemRepository, BrainLinkRepository
@@ -96,6 +96,10 @@ class Snapshot:
     teams: dict[str, GraphTeam] = field(default_factory=dict)
     people: dict[str, GraphPerson] = field(default_factory=dict)
     items: dict[str, GraphItem] = field(default_factory=dict)
+    #: Meeting titles used by more than one meeting in the company — including ones
+    #: this viewer cannot see. A fact cited only by such a title cannot be pinned to
+    #: a meeting, so retrieval must not attribute it to the visible one.
+    ambiguous_meeting_titles: frozenset[str] = frozenset()
 
 
 class GraphService(TenantService):
@@ -182,9 +186,14 @@ class GraphService(TenantService):
             snap.items[str(item.id)] = self._item_from_brain(item, snap)
 
         meetings = MeetingRepository(self.db, cid, vis).list_recent(limit=MAX_MEETINGS)
-        meeting_ids_by_title: dict[str, list[str]] = defaultdict(list)
-        for m in meetings:
-            meeting_ids_by_title[m.title].append(f"{MEETING_PREFIX}{m.id}")
+        visible_meetings = {m.id for m in meetings}
+        snap.ambiguous_meeting_titles = self._ambiguous_meeting_titles()
+        # Legacy tasks (no meeting_id) fall back to their title only when that title
+        # names exactly one meeting in the whole company. See #29 review.
+        unique_title_meeting = {
+            m.title: f"{MEETING_PREFIX}{m.id}" for m in meetings
+            if m.title not in snap.ambiguous_meeting_titles
+        }
 
         tasks = TaskRepository(self.db, cid, vis).list_filtered(limit=MAX_TASKS)
         for t in tasks:
@@ -192,10 +201,15 @@ class GraphService(TenantService):
                 continue
             node = f"{TASK_PREFIX}{t.id}"
             snap.items[node] = self._item_from_task(t, snap)
-            if t.source_ref and t.source_ref.startswith(MEETING_SOURCE_PREFIX):
-                for meeting_node in meeting_ids_by_title.get(t.source_ref[len(MEETING_SOURCE_PREFIX):], []):
-                    related[node].add(meeting_node)
-                    related[meeting_node].add(node)
+            meeting_node = None
+            if t.meeting_id is not None:
+                if t.meeting_id in visible_meetings:
+                    meeting_node = f"{MEETING_PREFIX}{t.meeting_id}"
+            elif t.source_ref and t.source_ref.startswith(MEETING_SOURCE_PREFIX):
+                meeting_node = unique_title_meeting.get(t.source_ref[len(MEETING_SOURCE_PREFIX):])
+            if meeting_node:
+                related[node].add(meeting_node)
+                related[meeting_node].add(node)
 
         speakers = self._speakers([m.id for m in meetings])
         for m in meetings:
@@ -323,6 +337,17 @@ class GraphService(TenantService):
             status=_TASK_STATUS.get(task.status), source=source or task.created_by_agent,
             date=when.date().isoformat() if when else None,
         ), snap)
+
+    def _ambiguous_meeting_titles(self) -> frozenset[str]:
+        """Titles shared by 2+ meetings in the company. Deliberately unscoped: the
+        meeting that makes a title ambiguous may be one the viewer cannot see."""
+        rows = self.db.execute(
+            select(Meeting.title)
+            .where(Meeting.company_id == self.company_id)
+            .group_by(Meeting.title)
+            .having(func.count() > 1)
+        ).scalars()
+        return frozenset(rows)
 
     def _speakers(self, meeting_ids: list[uuid.UUID]) -> dict[uuid.UUID, set[uuid.UUID]]:
         if not meeting_ids:
