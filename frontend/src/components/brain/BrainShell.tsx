@@ -31,7 +31,7 @@ const ROLES: { role: Role; label: string }[] = [
 
 const ROLE_SEES: Record<Role, string> = {
   owner: 'Sees the whole company',
-  admin: 'Sees their department',
+  admin: 'Sees their team',
   member: 'Sees only their own work',
 };
 
@@ -100,7 +100,7 @@ function Sidebar({ open, onClose, pathname }: { open: boolean; onClose: () => vo
           <div className="rounded-cards border border-stone-border bg-white px-3 py-2.5">
             <p className="text-[11px] uppercase tracking-wider text-ash-gray">Workspace</p>
             <p className="text-sm font-medium text-ink-black mt-0.5">{ORG.name}</p>
-            <p className="text-xs text-warm-gray">{ORG.people.length} people · {ORG.departments.length} departments</p>
+            <p className="text-xs text-warm-gray">{ORG.people.length} people · {ORG.departments.length} teams</p>
           </div>
         </div>
 

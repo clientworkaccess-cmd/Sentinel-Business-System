@@ -264,31 +264,32 @@ function Children({ scope, items, onOpenItem }: { scope: Scope; items: BrainItem
   let children: Child[] = [];
   let title = '';
 
-  if (scope.level === 'org') {
-    title = 'Departments';
+  // Three levels, one per role: Business → Team (an Admin's) → Person.
+  if (scope.level === 'department') {
+    title = 'People';
+    const d = getDepartment(scope.id);
+    children = ORG.people
+      .filter((p) => p.departmentId === scope.id)
+      // The admin first, then everyone else in roster order.
+      .sort((a, b) => Number(b.role === 'admin') - Number(a.role === 'admin'))
+      .map((p) => ({
+        scope: { level: 'member', id: p.id },
+        name: p.name,
+        sub: p.teamId ? `${p.title} · ${getTeam(p.teamId)?.name}` : p.title,
+        hue: d?.hue ?? 205,
+        leadId: p.id,
+        peopleIds: [p.id],
+      }));
+  } else {
+    title = 'Teams';
     children = ORG.departments.map((d) => ({
       scope: { level: 'department', id: d.id },
       name: d.name,
-      sub: d.description ?? '',
+      sub: `Led by ${getPerson(d.headId)?.name} · ${d.description ?? ''}`,
       hue: d.hue,
       leadId: d.headId,
       peopleIds: ORG.people.filter((p) => p.departmentId === d.id).map((p) => p.id),
     }));
-  } else if (scope.level === 'department') {
-    title = 'Teams';
-    const d = getDepartment(scope.id);
-    children = (d?.teamIds ?? []).map((tid) => {
-      const t = getTeam(tid)!;
-      return { scope: { level: 'team', id: t.id }, name: t.name, sub: `Led by ${getPerson(t.leadId)?.name}`, hue: d!.hue, leadId: t.leadId, peopleIds: t.memberIds };
-    });
-  } else {
-    title = 'People';
-    const t = getTeam(scope.id);
-    const hue = t ? getDepartment(t.departmentId)?.hue ?? 205 : 205;
-    children = (t?.memberIds ?? []).map((id) => {
-      const p = getPerson(id)!;
-      return { scope: { level: 'member', id }, name: p.name, sub: p.title, hue, leadId: id, peopleIds: [id] };
-    });
   }
 
   return (

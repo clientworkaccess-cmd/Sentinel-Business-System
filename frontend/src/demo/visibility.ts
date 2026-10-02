@@ -65,10 +65,11 @@ export function scopePath(org: Org, scope: Scope): Scope[] {
       return team ? [root, { level: 'department', id: team.departmentId }, scope] : [root];
     }
     case 'member': {
+      // Business → Team → Person. The squad (`teamId`) is a label on the person,
+      // not a navigation level — the product shows three levels, one per role.
       const p = getPerson(scope.id);
       const path: Scope[] = [root];
       if (p?.departmentId) path.push({ level: 'department', id: p.departmentId });
-      if (p?.teamId) path.push({ level: 'team', id: p.teamId });
       path.push(scope);
       return path;
     }
