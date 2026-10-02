@@ -144,3 +144,17 @@ body {
 .btn-ghost:hover {
   background-color: rgb(var(--color-stone-canvas));
 }
+
+/*
+ * /brain demo typography. The font variables are set by the /brain layout via
+ * next/font; outside it they are undefined and these fall back to the system stack.
+ */
+.brain-root {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.font-display {
+  font-family: var(--font-display), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}

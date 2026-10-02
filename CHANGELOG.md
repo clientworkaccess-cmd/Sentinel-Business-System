@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.0] - 2026-10-02
+
+### Added
+- `/brain` demo shell: role switcher (Owner / Admin / Member), scope breadcrumb, and a role-aware overview over a hard-coded fictional company (`src/demo/`). It needs no backend or login, so it can't break on stage.
+- `src/demo/types.ts` is now the shared data contract and `src/demo/visibility.ts` the single source of who-sees-what. The chat route (#16) and graph API (#20) must reuse both rather than re-implementing the rules.
+
 ## [0.15.2] - 2026-10-02
 
 ### Added
