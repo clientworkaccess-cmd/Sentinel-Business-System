@@ -26,6 +26,8 @@ export interface Person {
   /** Leads run a team day to day but are still Members for visibility. */
   isLead?: boolean;
   email?: string;
+  /** What the UI calls them in greetings, when it isn't the first word of `name`. */
+  shortName?: string;
 }
 
 export interface Department {

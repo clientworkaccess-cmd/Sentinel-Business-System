@@ -2,7 +2,7 @@
  * Builds the grounded system prompt for /api/brain/chat. Server-only by
  * convention: import it from route handlers, never from a component.
  */
-import { ORG, getDepartment, getItem, getPerson, getTeam } from '@/demo/org';
+import { ORG, firstName, getDepartment, getItem, getPerson, getTeam } from '@/demo/org';
 import { itemsInScope, peopleInScope, scopeLabel, visiblePeople } from '@/demo/visibility';
 import type { BrainItem, Scope, Viewer } from '@/demo/types';
 import type { Hit } from '@/demo/answers';
@@ -32,7 +32,7 @@ function itemLine(i: BrainItem): string {
 
 export function buildSystemPrompt(viewer: Viewer, scope: Scope, hits: Hit[]): string {
   const me = getPerson(viewer.personId)!;
-  const first = me.name.split(' ')[0];
+  const first = firstName(me);
   const items = itemsInScope(ORG, viewer, scope);
   // Most relevant first, so a long context still leads with what the question is about.
   const top = new Set(hits.map((h) => h.item.id));
