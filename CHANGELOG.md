@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.15.2] - 2026-10-02
+
+### Added
+- Hackathon context docs: `docs/context/current-plan.md` (team, issue map, file ownership, API contracts), `product-brief.md` and `orchestrator-charter.md`, plus the `docs/features/brain-demo/` plan. Every agent session starts from `current-plan.md`.
+
 ## [0.15.1] - 2026-09-03
 
 ### Changed
