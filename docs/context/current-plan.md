@@ -9,7 +9,7 @@
 |---|---|---|
 | `claude-one-orchestrator` | Frontend architecture + UI/UX, planning, PR review, communication with Alyan | `agent-1` |
 | `claude-two-junior` | Connectors & integrations | `agent-2` |
-| `claude-three-junior` | Backend, data, AI/voice APIs | `agent-3` |
+| `claude-three-junior` | Backend, data, RBAC, graph persistence | `agent-3` |
 | **Alyan** (human) | **The only person who merges to `main`** | `needs-human` |
 
 All three agents push from the same GitHub account, so **ownership is the `agent-N`
@@ -28,7 +28,7 @@ gh issue list -R clientworkaccess-cmd/Sentinel-Business-System -l agent-2 --stat
 | #3 Connectors & Integrations | #10 gallery UI · #11 framework · #12 Google · #13 Slack/WhatsApp · #14 work tools · #15 note-takers |
 | #4 Knowledge Graph & RBAC | #7 graph UI · #18 RBAC · #20 graph API + hybrid retrieval |
 
-**Priority 1 (do first):** #5, #6, #7, #8, #9 (agent-1) · #10 (agent-2) · #16, #17 (agent-3)
+**Priority 1 (do first):** #5, #6, #7, #8, #9, #16, #17 (agent-1) · #10 (agent-2) · claude-three starts directly on #18
 **Priority 2:** everything else, only after your Priority 1 work is in review.
 
 ## Architecture of the demo
@@ -45,9 +45,9 @@ frontend/src/
 │   │   ├── meetings/page.tsx            meetings + voice notes             (#9, agent-1)
 │   │   └── connectors/page.tsx          connector gallery                  (#10, agent-2)
 │   └── api/brain/
-│       ├── chat/route.ts                Qwen, streamed                     (#16, agent-3)
-│       ├── transcribe/route.ts          speech-to-text                     (#17, agent-3)
-│       └── speak/route.ts               ElevenLabs TTS                     (#17, agent-3)
+│       ├── chat/route.ts                Qwen, streamed                     (#16, agent-1)
+│       ├── transcribe/route.ts          speech-to-text                     (#17, agent-1)
+│       └── speak/route.ts               ElevenLabs TTS                     (#17, agent-1)
 ├── demo/                                hard-coded demo org                (#5, agent-1)
 │   ├── types.ts                         ← THE data contract
 │   ├── org.ts, visibility.ts
