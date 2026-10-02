@@ -10,12 +10,14 @@ from app.models.audit_log import AuditLog
 from app.models.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.brain import BrainItem, BrainItemOwner, BrainLink
 from app.models.company import Company
+from app.models.connection import Connection
 from app.models.conversation import Conversation
 from app.models.employee import Employee
 from app.models.enums import (
     ApprovalState,
     BrainItemKind,
     BrainItemStatus,
+    ConnectionStatus,
     MessageAudience,
     MessageChannel,
     OutboundStatus,
@@ -43,6 +45,8 @@ __all__ = [
     "BrainItemStatus",
     "BrainLink",
     "Company",
+    "Connection",
+    "ConnectionStatus",
     "Conversation",
     "Department",
     "Employee",

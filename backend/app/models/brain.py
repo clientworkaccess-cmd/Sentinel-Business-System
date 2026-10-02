@@ -53,6 +53,11 @@ class BrainItem(UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, Base):
     team_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("teams.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    #: The connection that synced this item. Disconnecting removes what it brought in;
+    #: null for items added by hand or through the API.
+    connection_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("connections.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     owners: Mapped[list["BrainItemOwner"]] = relationship(
         back_populates="item", cascade="all, delete-orphan", lazy="selectin"

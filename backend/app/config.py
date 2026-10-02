@@ -54,6 +54,24 @@ class Settings(BaseSettings):
     hydra_db_api_key: str = ""
     hydra_timeout_seconds: float = 30.0
 
+    # Connectors (#11). Composio brokers OAuth and holds every provider token; we
+    # keep only its account ids. Empty disables connecting, and nothing else.
+    composio_api_key: str = ""
+    #: Optional pinned auth configs ("ac_..."), one per Composio toolkit. Unset ones
+    #: are found or created as Composio-managed on first use.
+    composio_auth_config_gmail: str = ""
+    composio_auth_config_googlecalendar: str = ""
+    composio_auth_config_googledrive: str = ""
+    composio_auth_config_slack: str = ""
+    #: Where this API is reachable from a browser. The OAuth callback lands here.
+    public_api_url: str = "http://localhost:8000"
+    #: Where the frontend lives. The callback sends the browser back to it.
+    frontend_url: str = "http://localhost:3000"
+    #: How often the scheduler re-syncs every active connection.
+    connector_sync_interval_minutes: int = 30
+    #: How far back the first sync of a mailbox, calendar or channel reaches.
+    connector_backfill_days: int = 90
+
     @model_validator(mode="after")
     def refuse_weak_jwt_secret_outside_dev(self) -> "Settings":
         """Fail at startup, not at the first forged token. Fails closed: only an
@@ -98,6 +116,10 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> list[str]:
         """CORS_ORIGINS is comma-separated in the environment."""
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def connectors_enabled(self) -> bool:
+        return bool(self.composio_api_key.strip())
 
     @property
     def is_production(self) -> bool:

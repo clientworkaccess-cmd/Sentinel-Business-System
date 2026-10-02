@@ -8,6 +8,7 @@ from app.api.v1 import (
     auth,
     chat,
     company,
+    connectors,
     employees,
     graph,
     knowledge,
@@ -38,3 +39,4 @@ api_router.include_router(meetings.router, prefix="/meetings")
 api_router.include_router(admin.router)
 api_router.include_router(org.router)
 api_router.include_router(graph.router)
+api_router.include_router(connectors.router)
