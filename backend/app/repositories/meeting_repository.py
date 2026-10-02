@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Sequence
 
-from sqlalchemy import ColumnElement, exists, false, func, or_
+from sqlalchemy import ColumnElement, exists, false, or_
 from sqlalchemy.orm import Session
 
 from app.models.meeting import Meeting, MeetingStatus, TranscriptSegment
@@ -26,8 +26,10 @@ class MeetingRepository(TenantScopedRepository[Meeting]):
     def _visible_clause(self, visibility: "Visibility") -> ColumnElement[bool]:
         """A meeting someone in reach spoke in, or that produced a task they own.
 
-        Meetings have no attendee list, so these are the two links that exist. Tasks
-        cite a meeting by the source_ref the pipeline writes ("Meeting: {title}").
+        Meetings have no attendee list, so these are the two links that exist. The
+        task link is ``tasks.meeting_id``, never the title in ``source_ref``: titles
+        repeat ("Weekly Standup"), and a title match would hand one team's
+        transcript to anyone owning a task from another team's meeting of that name.
         """
         if not visibility.employee_ids:
             return false()
@@ -38,7 +40,7 @@ class MeetingRepository(TenantScopedRepository[Meeting]):
         )
         owns_task = exists().where(
             Task.company_id == Meeting.company_id,
-            Task.source_ref == func.concat("Meeting: ", Meeting.title),
+            Task.meeting_id == Meeting.id,
             Task.owner_employee_id.in_(people),
         )
         return or_(spoke, owns_task)

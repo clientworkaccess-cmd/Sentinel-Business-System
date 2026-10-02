@@ -7,7 +7,8 @@
 - Watch out: tokens and `/auth/me` now say `owner|admin|member`, and a token whose role no longer matches the user is rejected, so everyone signs in once after the migration. The legacy dashboard still checks `'founder'`/`'employee'` and needs updating.
 
 ### Fixed
-- Security review: failed logins no longer log the email, unknown emails cost the same bcrypt time as wrong passwords, and production refuses to start with the placeholder `JWT_SECRET_KEY`.
+- Security review: failed logins no longer log the email, and unknown emails cost the same bcrypt time as wrong passwords. Startup refuses the placeholder `JWT_SECRET_KEY` unless `ENVIRONMENT` is explicitly dev/local/test. A password change, deactivation or role change bumps `users.token_version`, ending old sessions.
+- Meeting visibility now follows `tasks.meeting_id`, set by the extractor, instead of the title in `source_ref`. Two meetings with the same title had let one team read the other's transcript. Older tasks were backfilled only where the title was unique.
 
 ## [0.19.0] - 2026-10-02
 

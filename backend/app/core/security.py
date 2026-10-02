@@ -42,6 +42,7 @@ def create_access_token(
     user_id: uuid.UUID,
     company_id: uuid.UUID,
     role: UserRole | str,
+    token_version: int = 0,
     expires_delta: timedelta | None = None,
 ) -> str:
     """Issue a token. company_id is what every downstream query is scoped by.
@@ -57,6 +58,7 @@ def create_access_token(
         "sub": str(user_id),
         "company_id": str(company_id),
         "role": role_str,
+        "ver": token_version,
         "exp": expire,
         "iat": datetime.now(UTC),
     }

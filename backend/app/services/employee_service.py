@@ -141,11 +141,15 @@ class EmployeeService(TenantService):
             raise NotFoundError("Login account not found for this employee.")
 
         values = payload.model_dump(exclude_unset=True)
+        #: A new password, a deactivation or a role change each end existing sessions.
+        revoke = False
         if "password" in values and values["password"]:
             user.password_hash = hash_password(values["password"])
+            revoke = True
         if "full_name" in values:
             user.full_name = values["full_name"]
         if "is_active" in values and values["is_active"] is not None:
+            revoke = revoke or (user.is_active and not values["is_active"])
             user.is_active = values["is_active"]
         if values.get("role") is not None and values["role"] is not user.role:
             if user.role is UserRole.OWNER:
@@ -154,6 +158,9 @@ class EmployeeService(TenantService):
                 # A demoted Admin keeps nothing they managed. Re-promoting starts clean.
                 AdminAssignmentRepository(self.db, self.company_id).clear_for_user(user.id)
             user.role = values["role"]
+            revoke = True
+        if revoke:
+            user.token_version = (user.token_version or 0) + 1
 
         self.db.flush()
         return user
