@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.17.0] - 2026-10-02
+
+### Added
+- `/brain/graph`: compound-of-brains knowledge graph (Org → Department → Team → Individual) with click-to-zoom drill-down, hover tracing and the shared item drawer. Clusters are fixed rectangles and nodes are clamped inside them, so overlap is impossible by construction; tune the forces in `graph/model.ts`, not the clamp.
+- The graph canvas is dark in both themes by design. Don't add CSS entry animations to the SVG: the per-tick re-render restarts them and leaves the graph invisible.
+
 ## [0.16.0] - 2026-10-02
 
 ### Added
