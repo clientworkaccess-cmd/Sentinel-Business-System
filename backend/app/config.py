@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # App
     environment: str = "development"
     cors_origins: str = "http://localhost:3000"
+    #: Whether this process runs the background scheduler (chasing, connector sync).
+    #: With several API processes, turn it on in exactly one — or run a dedicated
+    #: worker — so the daily chase is not sent once per process.
+    run_scheduler: bool = True
 
     # Agent & LLM (Qwen API via OpenAI-compatible endpoint).
     # No default: a key belongs in .env, never in the repo. See docs/rules/security.md.

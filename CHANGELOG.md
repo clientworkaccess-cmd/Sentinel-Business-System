@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.24.0] - 2026-10-03
+
+### Added
+- Production setup: `backend/Dockerfile` (non-root, `RUN_MIGRATIONS`, `WEB_CONCURRENCY`), a `/ready` probe that is 503 until the DB answers and its schema is at head, and CI (`.github/workflows/`) running migrations, drift and every verify suite on a throwaway Postgres, plus the frontend build in both login modes. See `docs/features/production-hardening/deploy.md`.
+- Watch out: `RUN_SCHEDULER` must be `true` in exactly one process, or the daily chase goes out once per worker.
+
+### Fixed
+- With no `QWEN_API_KEY`, chat and meetings now return a clean 503 before writing anything, instead of a 500 after leaving a failed meeting row. `verify.py` now skips model-only checks without a key (109 pass, 0 fail), and its two expectations made stale by #29/#20 are updated.
+- Security headers on every response; a caller's `X-Request-ID` can no longer inject log lines; the missing `reports.report_date` index is created, so models and migrations match exactly.
+
 ## [0.23.0] - 2026-10-02
 
 ### Added

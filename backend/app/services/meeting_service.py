@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agentic_ai.agents.extractor import run_transcript_extraction
+from app.agentic_ai.config import require_llm
 from app.exceptions import ConflictError, NotFoundError
 from app.models.company import Company
 from app.models.meeting import Meeting, MeetingStatus
@@ -143,6 +144,7 @@ class MeetingService(TenantService):
         actor: User | None = None,
     ) -> tuple[Meeting, list[dict[str, Any]]]:
         """Transcribe audio recording and extract structured tasks into approval queue."""
+        require_llm()  # transcription and extraction both need it; fail before any row
         resolved_title = title or (filename.rsplit(".", 1)[0] if filename else "Meeting Recording")
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "webm"
 
@@ -210,6 +212,7 @@ class MeetingService(TenantService):
         recorded_at: datetime | None = None,
     ) -> tuple[Meeting, list[dict[str, Any]]]:
         """Process direct transcript text and extract structured tasks."""
+        require_llm()
         meeting = self.meetings.create_meeting(
             title=title,
             recorded_at=recorded_at,
