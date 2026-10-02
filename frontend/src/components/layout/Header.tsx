@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { isMemberRole } from '@/types';
 import { BrandLockup } from '@/components/ui';
 import { MessageSquare, LogOut, Shield, Menu, Sun, Moon } from 'lucide-react';
 
@@ -38,7 +39,7 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {user?.role === 'founder' && (
+        {!isMemberRole(user?.role) && (
           <Link
             href="/chat"
             className="hidden lg:flex items-center gap-2 btn-ghost text-sm py-1.5 px-3 border-cyan-edge/40 hover:border-cyan-signal text-cyan-edge hover:text-cyan-signal"

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useSessionStore } from '../stores/useSessionStore';
 import { AUTH_MODE } from '../lib/authMode';
+import { isMemberRole } from '../types';
 
 export default function Home() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function Home() {
     }
     fetchCurrentUser().then(() => {
       if (useAuthStore.getState().isAuthenticated) {
-        if (useAuthStore.getState().user?.role === 'employee') {
+        if (isMemberRole(useAuthStore.getState().user?.role)) {
           router.replace('/me');
         } else {
           router.replace('/approvals');
