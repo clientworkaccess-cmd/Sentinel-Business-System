@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.0] - 2026-10-02
+
+### Added
+- Graph API (#20): `GET /api/v1/graph?level=&id=` serves `{departments, teams, people, items}` in the `frontend/src/demo/types.ts` shape from real data, narrowed by role. Tasks and meetings are projected live, and projects/clients/decisions live in `brain_items`. A scope the caller can't view is a 404.
+- Hybrid retrieval (`GET /graph/search`, chat `search_business` for every role): HydraDB recall plus keyword seeds, one hop through `relatedIds`, then visibility. Facts that can't be traced to a visible node are dropped, and it degrades to graph-only when HydraDB is off.
+
 ## [0.21.0] - 2026-10-02
 
 ### Added

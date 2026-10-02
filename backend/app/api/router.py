@@ -9,6 +9,7 @@ from app.api.v1 import (
     chat,
     company,
     employees,
+    graph,
     knowledge,
     me,
     meetings,
@@ -36,3 +37,4 @@ api_router.include_router(reports.router)
 api_router.include_router(meetings.router, prefix="/meetings")
 api_router.include_router(admin.router)
 api_router.include_router(org.router)
+api_router.include_router(graph.router)

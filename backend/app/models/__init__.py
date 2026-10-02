@@ -8,11 +8,14 @@ propose dropping.
 from app.models.approval import Approval
 from app.models.audit_log import AuditLog
 from app.models.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.brain import BrainItem, BrainItemOwner, BrainLink
 from app.models.company import Company
 from app.models.conversation import Conversation
 from app.models.employee import Employee
 from app.models.enums import (
     ApprovalState,
+    BrainItemKind,
+    BrainItemStatus,
     MessageAudience,
     MessageChannel,
     OutboundStatus,
@@ -34,6 +37,11 @@ __all__ = [
     "ApprovalState",
     "AuditLog",
     "Base",
+    "BrainItem",
+    "BrainItemKind",
+    "BrainItemOwner",
+    "BrainItemStatus",
+    "BrainLink",
     "Company",
     "Conversation",
     "Department",

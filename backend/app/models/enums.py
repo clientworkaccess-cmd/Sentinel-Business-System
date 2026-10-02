@@ -110,3 +110,25 @@ class OutboundStatus(str, enum.Enum):
     REJECTED = "rejected"
     SENT = "sent"
     FAILED = "failed"
+
+
+class BrainItemKind(str, enum.Enum):
+    """A node in the company brain. Mirrors ``ItemKind`` in frontend/src/demo/types.ts."""
+
+    PROJECT = "project"
+    CLIENT = "client"
+    MEETING = "meeting"
+    DOCUMENT = "document"
+    TASK = "task"
+    DECISION = "decision"
+    THREAD = "thread"
+
+
+class BrainItemStatus(str, enum.Enum):
+    """Mirrors ``ItemStatus`` in frontend/src/demo/types.ts."""
+
+    ON_TRACK = "on_track"
+    AT_RISK = "at_risk"
+    BLOCKED = "blocked"
+    DONE = "done"
+    PENDING_APPROVAL = "pending_approval"
