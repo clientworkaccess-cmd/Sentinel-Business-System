@@ -1,0 +1,12 @@
+- [ ] Demo data contract and fictional org (types, org, visibility)
+- [ ] useBrainStore with role, viewer and scope
+- [ ] /brain layout with sidebar, role switcher and scope breadcrumb
+- [ ] Role-aware overview page
+- [ ] Landing page at /
+- [ ] Compound-of-brains graph with 4 drill-down levels
+- [ ] Chat page with streaming, voice record, dictation and voice reply
+- [ ] Meetings and voice notes page with approval gate
+- [ ] Connector gallery and Connect Now modal
+- [ ] /api/brain/chat route (Qwen, role-grounded, fallback)
+- [ ] /api/brain/transcribe and /api/brain/speak routes
+- [ ] Full demo click-through rehearsal in light and dark
