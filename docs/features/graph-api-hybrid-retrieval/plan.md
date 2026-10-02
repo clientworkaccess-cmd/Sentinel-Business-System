@@ -66,6 +66,9 @@ tenant on write and stored in canonical form. A dangling edge is ignored on read
    titles and summaries, plus the items of any person named in the question.
 2. **Trace.** Each fact's `source_ref` maps to nodes (`item:<id>` or
    `Meeting: <title>`). For non-Owners, an untraceable fact is dropped (fail closed).
+   A title shared by two meetings in the company (even one out of reach) traces to
+   nothing. Task↔meeting edges use `tasks.meeting_id`, falling back to the title only
+   for legacy tasks whose title is unique company-wide (#29 review).
 3. **Expand.** One hop through related ids. Neighbours inherit half the seed's score.
 4. **Return.** Ranked items, their visible owners, and the traced facts.
    `vectorAvailable: false` when HydraDB is off or down.
