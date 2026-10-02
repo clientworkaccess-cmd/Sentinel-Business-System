@@ -1,5 +1,6 @@
 """Sentinel Agent Factory (One function builds every Sentinel)."""
 
+import uuid
 from datetime import date
 from typing import Literal
 
@@ -35,6 +36,7 @@ def _tools_for(
     source_ref: str | None = None,
     meeting_title: str | None = None,
     occurred_on: date | None = None,
+    meeting_id: uuid.UUID | None = None,
 ) -> list:
     """Determine the strict tool set based on actor role and entry point."""
     if entry == "chat":
@@ -63,7 +65,9 @@ def _tools_for(
         raw_threshold = getattr(company, "auto_approve_threshold", None)
         threshold = float(raw_threshold) if raw_threshold is not None and raw_threshold > 0 else 1.0
         return (
-            create_extractor_task_tools(company.id, threshold=threshold, source_ref=source_ref)
+            create_extractor_task_tools(
+                company.id, threshold=threshold, source_ref=source_ref, meeting_id=meeting_id
+            )
             + create_employee_tools(company.id)
             # A transcript yields commitments *and* knowledge. This is the only
             # entry point that writes to memory.
@@ -107,9 +111,10 @@ def build_sentinel(
     source_ref: str | None = None,
     meeting_title: str | None = None,
     occurred_on: date | None = None,
+    meeting_id: uuid.UUID | None = None,
 ):
     """Assemble Sentinel agent for one invocation with strict role-scoped tools."""
-    tools = _tools_for(db, company, actor, entry, source_ref, meeting_title, occurred_on)
+    tools = _tools_for(db, company, actor, entry, source_ref, meeting_title, occurred_on, meeting_id)
     prompt = _prompt_for(company, actor, entry)
     llm = get_llm()
     checkpointer = get_checkpointer()

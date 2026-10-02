@@ -113,6 +113,7 @@ class TaskService(TenantService):
         confidence: float | None = None,
         created_by_agent: str = "extractor",
         thread_id: str | None = None,
+        meeting_id: uuid.UUID | None = None,
     ) -> tuple[Task, bool]:
         """Create a task that must be approved before anyone is contacted.
 
@@ -145,6 +146,7 @@ class TaskService(TenantService):
             source_id=source_id,
             confidence=confidence,
             created_by_agent=created_by_agent,
+            meeting_id=meeting_id,
             # status is deliberately not passed — it falls to the server default.
         )
 

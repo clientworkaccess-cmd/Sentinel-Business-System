@@ -338,12 +338,14 @@ def create_extractor_task_tools(
     company_id: uuid.UUID,
     threshold: float,
     source_ref: str | None = None,
+    meeting_id: uuid.UUID | None = None,
 ) -> list[Callable]:
     """Create task extraction tools with the confidence approval gate.
 
-    source_ref is captured here rather than exposed as a tool argument: the model
-    cannot attribute a task to a meeting it did not come from. Rule 6 — every task
-    cites its source.
+    source_ref and meeting_id are captured here rather than exposed as tool
+    arguments: the model cannot attribute a task to a meeting it did not come from.
+    Rule 6 — every task cites its source. meeting_id is the link visibility trusts;
+    source_ref carries the title, which two meetings can share.
     """
 
     @tool
@@ -390,7 +392,9 @@ def create_extractor_task_tools(
             # Rule 3. A deterministic key means re-running extraction over the same
             # meeting returns the existing task instead of duplicating it — which is
             # what create_pending's contract promises and a fresh uuid4 broke.
-            idem = f"extract:{source_ref or 'adhoc'}:{title.strip().lower()}"
+            # Keyed by meeting id when there is one: two meetings with the same title
+            # are different meetings, and must not dedupe each other's tasks.
+            idem = f"extract:{meeting_id or source_ref or 'adhoc'}:{title.strip().lower()}"
 
             auto_approve = threshold < 1.0 and confidence >= threshold
 
@@ -409,6 +413,7 @@ def create_extractor_task_tools(
                     owner_employee_id=owner_uuid,
                     deadline=deadline_dt,
                     confidence=confidence,
+                    meeting_id=meeting_id,
                 )
 
                 if created and auto_approve:

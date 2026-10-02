@@ -804,6 +804,8 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         check(
             "member token on GET /tasks sees only their own tasks",
             r_emp_on_founder.status_code == 200
+            # Non-empty first: all() over nothing would pass a member who sees nothing.
+            and r_emp_on_founder.json()["items"]
             and all(t["owner_employee_id"] == str(emp_a.id) for t in r_emp_on_founder.json()["items"]),
             str(r_emp_on_founder.status_code),
         )

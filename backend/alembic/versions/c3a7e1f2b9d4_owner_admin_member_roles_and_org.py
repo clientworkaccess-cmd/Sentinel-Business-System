@@ -36,13 +36,28 @@ def _timestamps() -> list[sa.Column]:
 
 def upgrade() -> None:
     # --- roles -------------------------------------------------------------------
-    op.execute("ALTER TYPE user_role RENAME VALUE 'founder' TO 'owner'")
-    op.execute("ALTER TYPE user_role RENAME VALUE 'employee' TO 'member'")
+    # Guarded, so a retry after a later step failed does not die here: the renames
+    # commit with the autocommit block below, ahead of the rest of the migration.
+    for old, new in (('founder', 'owner'), ('employee', 'member')):
+        op.execute(
+            f"""
+            DO $$ BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+                    WHERE t.typname = 'user_role' AND e.enumlabel = '{old}'
+                ) THEN
+                    ALTER TYPE user_role RENAME VALUE '{old}' TO '{new}';
+                END IF;
+            END $$;
+            """
+        )
     # ADD VALUE cannot be used in the transaction that adds it, and older Postgres
     # refuses it inside a transaction at all — so it gets its own.
     with op.get_context().autocommit_block():
         op.execute("ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'admin' AFTER 'owner'")
     op.alter_column('users', 'role', server_default='member')
+    # Bumped to end sessions on a password change, deactivation or role change.
+    op.add_column('users', sa.Column('token_version', sa.Integer(), server_default='0', nullable=False))
 
     # --- org hierarchy -----------------------------------------------------------
     op.create_table(
@@ -128,8 +143,34 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_employees_department_id'), 'employees', ['department_id'])
 
+    # Tasks link to their meeting by id. The title in source_ref is not unique, so
+    # matching on it let one team read another team's same-named meeting.
+    op.add_column('tasks', sa.Column('meeting_id', postgresql.UUID(as_uuid=True), nullable=True))
+    op.create_foreign_key(
+        'fk_tasks_meeting_id', 'tasks', 'meetings', ['meeting_id'], ['id'], ondelete='SET NULL',
+    )
+    op.create_index(op.f('ix_tasks_meeting_id'), 'tasks', ['meeting_id'])
+    # Backfill only where the title names exactly one meeting in the company. An
+    # ambiguous title stays unlinked rather than guessing which meeting it was.
+    op.execute(
+        """
+        UPDATE tasks t SET meeting_id = m.id
+        FROM meetings m
+        WHERE t.meeting_id IS NULL
+          AND t.company_id = m.company_id
+          AND t.source_ref = 'Meeting: ' || m.title
+          AND (SELECT count(*) FROM meetings m2
+               WHERE m2.company_id = m.company_id AND m2.title = m.title) = 1
+        """
+    )
+
 
 def downgrade() -> None:
+    op.drop_index(op.f('ix_tasks_meeting_id'), table_name='tasks')
+    op.drop_constraint('fk_tasks_meeting_id', 'tasks', type_='foreignkey')
+    op.drop_column('tasks', 'meeting_id')
+    op.drop_column('users', 'token_version')
+
     op.drop_index(op.f('ix_employees_department_id'), table_name='employees')
     op.drop_constraint('fk_employees_department_id', 'employees', type_='foreignkey')
     op.drop_column('employees', 'department_id')

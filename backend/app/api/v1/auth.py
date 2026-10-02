@@ -55,7 +55,8 @@ def signup(payload: SignupRequest, db: DbSession) -> TokenResponse:
     ensure_knowledge_database(db, company)
 
     token = create_access_token(
-        user_id=user.id, company_id=company.id, role=user.role
+        user_id=user.id, company_id=company.id, role=user.role,
+        token_version=user.token_version or 0,
     )
     return TokenResponse(
         access_token=token,
@@ -85,7 +86,8 @@ def login(payload: LoginRequest, db: DbSession) -> TokenResponse:
         raise InactiveUserError()
 
     token = create_access_token(
-        user_id=user.id, company_id=user.company_id, role=user.role
+        user_id=user.id, company_id=user.company_id, role=user.role,
+        token_version=user.token_version or 0,
     )
     return TokenResponse(
         access_token=token,

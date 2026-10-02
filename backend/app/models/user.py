@@ -8,7 +8,7 @@ the departments and teams in ``admin_assignments``, not anything on this row.
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -39,6 +39,10 @@ class User(UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, Base):
         server_default=UserRole.MEMBER.value,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    #: Carried in every token as ``ver``. Bumping it — password change, deactivation,
+    #: role change — ends every session issued before, instead of letting them run
+    #: to expiry.
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     #: The only FK between users and employees. Null for founders.
     employee_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -67,6 +67,13 @@ class Task(UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, Base):
     source_quote: Mapped[str | None] = mapped_column(Text, nullable=True)
     #: Human-readable provenance, e.g. "Sales Standup, Tue 10:04".
     source_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    #: The meeting this task was extracted from. The link visibility uses — a title
+    #: in source_ref is not unique, so two teams' "Weekly Standup" must not merge.
+    meeting_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("meetings.id", ondelete="SET NULL", name="fk_tasks_meeting_id"),
+        nullable=True,
+        index=True,
+    )
     #: Points at the transcript in the knowledge layer (step 7).
     source_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 

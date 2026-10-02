@@ -31,8 +31,11 @@ hybrid retrieval) can be built on top of it.
   including `get()`, `count()` and update/delete lookups. A model with no rule returns
   nothing to a non-Owner — a forgotten rule fails closed.
 - **Who sees which rows.** Tasks and employees through the owning employee. Meetings
-  through a transcript speaker in reach, or a task in reach citing
-  `Meeting: {title}`. Team memberships need both the team and the person in reach.
+  through a transcript speaker in reach, or a task in reach whose `meeting_id` is
+  that meeting. Not the title: titles repeat, and a title match leaked one team's
+  "Weekly Standup" to another (caught in review on #29). The extractor stamps
+  `meeting_id`, and older tasks were backfilled only where the title was unique.
+  Team memberships need both the team and the person in reach.
   Departments and teams are readable as labels by their own members.
 - **Out of reach is 404, not 403**, so ids cannot be probed.
 - **Writes stay Owner-only** (`OwnerUser`): tasks, employees, logins, org structure,
@@ -63,8 +66,11 @@ hybrid retrieval) can be built on top of it.
 - Failed logins no longer log the email address (personal data).
 - Unknown-email logins verify against a dummy bcrypt hash, so timing does not reveal
   whether an account exists.
-- Startup refuses the placeholder or a < 32-char `JWT_SECRET_KEY` when
-  `ENVIRONMENT=production` — a forgeable key means reading any tenant.
+- Startup refuses the placeholder or a < 32-char `JWT_SECRET_KEY` unless
+  `ENVIRONMENT` is explicitly development/dev/local/test (fail closed). A forgeable
+  key means reading any tenant.
+- `users.token_version` is carried as the `ver` claim and bumped on password change,
+  deactivation and role change, so those end existing sessions.
 - Passwords: bcrypt (passlib), 8–128 chars, never logged or returned. Sessions: 8 h
   JWT, re-validated against the user row (active, tenant, role) on every request.
 
@@ -72,8 +78,9 @@ hybrid retrieval) can be built on top of it.
 
 - The legacy dashboard reads `role === 'founder' | 'employee'`; it must switch to
   `owner | admin | member` (frontend, claude-one).
-- Meeting visibility relies on speaker mapping and the title-based `source_ref`;
-  meetings with neither are Owner-only.
+- A mapped speaker sees the whole transcript of a meeting they spoke in. Whether
+  non-Owners should see only in-reach speakers' segments is a product call, flagged
+  to Alyan. Meetings with neither a speaker nor a linked task are Owner-only.
 
 ## Verification
 
