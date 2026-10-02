@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.0] - 2026-10-02
+
+### Added
+- `/brain/connectors` (#10): 54 apps across 10 categories with search, category chips (deep-linkable via `?category=`), and a Connect flow: permissions → OAuth window / API key / WhatsApp QR → sync progress → connected, plus Manage (sync now, disconnect). Simulated end to end; #11 replaces it with real OAuth against the same `src/demo/connectors.ts` shape.
+- 38 brand logos bundled in `public/connectors/` (generated once from simple-icons, CC0) so nothing loads from a CDN on stage; Slack, Microsoft and others simple-icons doesn't carry use brand-colour monograms. The 19 apps the demo data cites as sources start connected, so the gallery and the overview agree.
+
 ## [0.20.0] - 2026-10-02
 
 ### Added
