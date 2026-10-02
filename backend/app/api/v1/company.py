@@ -21,6 +21,7 @@ def _read(company: Company) -> CompanyRead:
         escalation_after_days=company.escalation_after_days,
         max_chases=company.max_chases,
         auto_approve_threshold=company.auto_approve_threshold,
+        auto_send_internal_followups=company.auto_send_internal_followups,
         slack_connected=bool(company.slack_bot_token),
         slack_team_id=company.slack_team_id,
         knowledge_connected=bool(company.hydra_tenant_id),
@@ -55,6 +56,9 @@ def update_company(
         company.persona_config = values.pop("persona_config")
     else:
         values.pop("persona_config", None)
+
+    if values.get("auto_send_internal_followups", False) is None:
+        values.pop("auto_send_internal_followups")  # explicit null means "unchanged"
 
     for key, value in values.items():
         setattr(company, key, value)

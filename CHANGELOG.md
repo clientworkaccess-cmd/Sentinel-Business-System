@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.0] - 2026-10-02
+
+### Added
+- External message approval gate (#19): every message Sentinel would send is an `outbound_messages` row born `pending_approval`. External ones leave only after an Owner approves (`/api/v1/approvals/messages`), and the database refuses an approved external row with no human decider. Internal follow-ups auto-send only if `auto_send_internal_followups` is on.
+- Connectors must not call a provider's send API directly: implement `ChannelSender` and `register_sender()` in `app/services/outbound_gate.py`. The gate hands senders a `SendPermit` that nothing else can mint.
+
 ## [0.20.0] - 2026-10-02
 
 ### Added

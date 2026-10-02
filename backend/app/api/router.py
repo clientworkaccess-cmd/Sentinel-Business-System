@@ -14,6 +14,7 @@ from app.api.v1 import (
     meetings,
     onboarding,
     org,
+    outbound,
     reports,
     tasks,
 )
@@ -22,6 +23,9 @@ api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
 api_router.include_router(tasks.router)
 api_router.include_router(employees.router)
+# Before approvals.router: its /approvals/{approval_id} would otherwise capture
+# /approvals/messages.
+api_router.include_router(outbound.router)
 api_router.include_router(approvals.router)
 api_router.include_router(company.router)
 api_router.include_router(onboarding.router)

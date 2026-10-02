@@ -11,9 +11,18 @@ from app.models.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMix
 from app.models.company import Company
 from app.models.conversation import Conversation
 from app.models.employee import Employee
-from app.models.enums import ApprovalState, ReportedVia, TaskStatus, UserRole
+from app.models.enums import (
+    ApprovalState,
+    MessageAudience,
+    MessageChannel,
+    OutboundStatus,
+    ReportedVia,
+    TaskStatus,
+    UserRole,
+)
 from app.models.meeting import Meeting, MeetingStatus, TranscriptSegment
 from app.models.org import AdminAssignment, Department, Team, TeamMembership
+from app.models.outbound_message import OutboundMessage
 from app.models.report import Report
 from app.models.status_update import StatusUpdate
 from app.models.task import Task
@@ -31,6 +40,10 @@ __all__ = [
     "Employee",
     "Meeting",
     "MeetingStatus",
+    "MessageAudience",
+    "MessageChannel",
+    "OutboundMessage",
+    "OutboundStatus",
     "Report",
     "ReportedVia",
     "StatusUpdate",

@@ -20,6 +20,7 @@ from app.agentic_ai.tools import (
     create_employee_tools,
     create_extractor_task_tools,
     create_founder_task_tools,
+    create_outbound_tools,
 )
 from app.models.company import Company
 from app.models.enums import UserRole
@@ -45,6 +46,8 @@ def _tools_for(
                 + create_employee_tools(company.id)
                 # Read-only: the founder queries settled history, never writes it.
                 + create_knowledge_read_tools(company.id, company.hydra_tenant_id)
+                # Drafts only. External messages wait for the Owner in the gate (#19).
+                + create_outbound_tools(company.id)
             )
         elif actor.role in (UserRole.ADMIN, UserRole.MEMBER):
             # Admins get the Member tool set for now: their own tasks only. Team-wide

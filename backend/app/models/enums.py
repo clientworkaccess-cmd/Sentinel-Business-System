@@ -72,3 +72,41 @@ class ReportedVia(str, enum.Enum):
     SLACK = "slack"
     DASHBOARD = "dashboard"
     AGENT = "agent"
+
+
+class MessageChannel(str, enum.Enum):
+    """Where an outbound message goes. Each has at most one registered sender."""
+
+    EMAIL = "email"
+    WHATSAPP = "whatsapp"
+    SLACK = "slack"
+    #: A shared channel with another organisation. External by definition.
+    SLACK_CONNECT = "slack_connect"
+    #: An in-product reminder. Never leaves the company.
+    IN_APP = "in_app"
+
+
+#: Channels that can only ever reach someone outside the company. A message on one
+#: of these is external no matter who it names.
+EXTERNAL_ONLY_CHANNELS = frozenset({MessageChannel.WHATSAPP, MessageChannel.SLACK_CONNECT})
+
+
+class MessageAudience(str, enum.Enum):
+    """Decided by the server from the recipient, never by the model or the caller."""
+
+    INTERNAL = "internal"
+    EXTERNAL = "external"
+
+
+class OutboundStatus(str, enum.Enum):
+    """An outbound message's lifecycle.
+
+    PENDING_APPROVAL is the server default — as with tasks, nothing can be created
+    already cleared to send. EXTERNAL messages leave it only by a human decision.
+    """
+
+    PENDING_APPROVAL = "pending_approval"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    SENT = "sent"
+    FAILED = "failed"
