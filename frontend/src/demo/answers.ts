@@ -104,7 +104,7 @@ Everyone else is on track. Lumen Pay's security questionnaire is due Oct 8, Saff
       sources: ['client-indus', 'dec-indus-discount', 'task-indus-invoice', 'client-kestrel', 'task-kestrel-sdk', 'task-kestrel-email'],
     },
     {
-      text: `In Wednesday's **Leadership weekly** (Sep 30, recorded by Fireflies), you and the five department heads decided:
+      text: `In Wednesday's **Leadership weekly** (Sep 30, recorded by Fireflies), you and the five team admins decided:
 
 1. **Migrate production to AWS Bahrain.** Cutover target **Nov 15**. It cuts about 90ms of latency for Gulf clients and keeps data in-region, for roughly +8% infra cost.
 2. **Open 3 backend engineer roles.** The hiring freeze is lifted for backend only, because Platform is running at 120% load with the migration.

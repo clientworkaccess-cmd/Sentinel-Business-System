@@ -9,7 +9,7 @@ import type { Hit } from '@/demo/answers';
 
 const ROLE_RULE = {
   owner: 'They are the Owner and may see everything in the company.',
-  admin: 'They are an Admin and may see only their own department.',
+  admin: 'They are an Admin and may see only their own team.',
   member: 'They are a Member and may see only their own work.',
 } as const;
 
@@ -42,7 +42,7 @@ export function buildSystemPrompt(viewer: Viewer, scope: Scope, hits: Hit[]): st
   const people = peopleInScope(ORG, scope)
     .filter((p) => visible.has(p.id))
     .map((p) => {
-      const where = [p.teamId && getTeam(p.teamId)?.name, p.departmentId && getDepartment(p.departmentId)?.name].filter(Boolean).join(', ');
+      const where = [p.departmentId && `${getDepartment(p.departmentId)?.name} team`, p.teamId && getTeam(p.teamId)?.name].filter(Boolean).join(', ');
       return `- ${p.name}: ${p.title}${where ? ` (${where})` : ''}`;
     });
 
