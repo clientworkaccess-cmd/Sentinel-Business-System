@@ -251,6 +251,11 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
               r.status_code == 200 and r.json()["status"] == "failed" and r.json()["delivery_error"], r.text[:200])
         r = client.post(f"{base}/{pending_ext_id}/retry", headers=oh)
         check("retry sends it without re-approving", r.status_code == 200 and r.json()["status"] == "sent", r.text[:200])
+        # A second click on Retry must never become a second email (#30 review).
+        sent_before = len(email.sent)
+        r = client.post(f"{base}/{pending_ext_id}/retry", headers=oh)
+        check("retrying an already-sent message is 409 and sends nothing",
+              r.status_code == 409 and len(email.sent) == sent_before, r.text[:200])
         r = client.post(base, headers=oh, json={"channel": "slack_connect", "recipient_address": "C0SHARED", "body": "hi"})
         sc = r.json()
         r = client.post(f"{base}/{sc['id']}/approve", headers=oh)
