@@ -1,7 +1,9 @@
 """Outbound message approvals — the human gate for words leaving the company (#19).
 
-Mounted at ``/approvals/messages``, beside the task approval queue. Owners decide;
-Owners and Admins may draft. Every decision is audited in the same transaction.
+Mounted at ``/approvals/messages``, beside the task approval queue. The Owner, or the
+Admin of the team a message belongs to, decides (agreed on #29) — the gate is built
+with the caller's Viewer, so an Admin cannot find, let alone approve, another team's
+message. Members can do neither. Every decision is audited in the same transaction.
 
 Each decision commits *before* dispatch, and dispatch commits on its own: if the
 process dies mid-send, the approval is already on record and cannot be replayed into
@@ -13,7 +15,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Query, Response, status
 
-from app.dependencies import CompanyId, DbSession, OwnerOrAdminUser, OwnerUser
+from app.dependencies import CompanyId, DbSession, OwnerOrAdminUser, Viewer
 from app.models.enums import MessageAudience, OutboundStatus
 from app.schemas.outbound import (
     OutboundDraftCreate,
@@ -27,8 +29,9 @@ from app.services.outbound_gate import OutboundGate
 router = APIRouter(prefix="/approvals/messages", tags=["approvals"])
 
 
-def get_outbound_gate(db: DbSession, company_id: CompanyId) -> OutboundGate:
-    return OutboundGate(db, company_id)
+def get_outbound_gate(db: DbSession, company_id: CompanyId, viewer: Viewer) -> OutboundGate:
+    """Scoped to the caller: an Admin's gate only finds their teams' messages."""
+    return OutboundGate(db, company_id, viewer)
 
 
 Gate = Annotated[OutboundGate, Depends(get_outbound_gate)]
@@ -46,7 +49,7 @@ def _dispatch_if_cleared(gate: OutboundGate, db: DbSession, message_id: uuid.UUI
 @router.get("", response_model=OutboundListResponse)
 def list_messages(
     gate: Gate,
-    _: OwnerUser,
+    _: OwnerOrAdminUser,
     status_filter: Annotated[list[OutboundStatus] | None, Query(alias="status")] = None,
     audience: MessageAudience | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
@@ -78,13 +81,13 @@ def draft_message(
 
 
 @router.get("/{message_id}", response_model=OutboundMessageRead)
-def get_message(message_id: uuid.UUID, gate: Gate, _: OwnerUser) -> OutboundMessageRead:
+def get_message(message_id: uuid.UUID, gate: Gate, _: OwnerOrAdminUser) -> OutboundMessageRead:
     return OutboundMessageRead.model_validate(gate.get_or_404(message_id))
 
 
 @router.post("/{message_id}/approve", response_model=OutboundMessageRead)
 def approve_message(
-    message_id: uuid.UUID, gate: Gate, current_user: OwnerUser, db: DbSession
+    message_id: uuid.UUID, gate: Gate, current_user: OwnerOrAdminUser, db: DbSession
 ) -> OutboundMessageRead:
     """Approve and send. 409 if it was already decided."""
     gate.approve(message_id, decided_by=current_user)
@@ -97,7 +100,7 @@ def edit_message(
     message_id: uuid.UUID,
     payload: OutboundEditRequest,
     gate: Gate,
-    current_user: OwnerUser,
+    current_user: OwnerOrAdminUser,
     db: DbSession,
 ) -> OutboundMessageRead:
     """Change the wording. The message stays pending until approved."""
@@ -118,7 +121,7 @@ def reject_message(
     message_id: uuid.UUID,
     payload: OutboundRejectRequest,
     gate: Gate,
-    current_user: OwnerUser,
+    current_user: OwnerOrAdminUser,
     db: DbSession,
 ) -> OutboundMessageRead:
     """Reject. Nothing is sent, and the decision is final."""
@@ -130,7 +133,7 @@ def reject_message(
 
 @router.post("/{message_id}/retry", response_model=OutboundMessageRead)
 def retry_message(
-    message_id: uuid.UUID, gate: Gate, current_user: OwnerUser, db: DbSession
+    message_id: uuid.UUID, gate: Gate, current_user: OwnerOrAdminUser, db: DbSession
 ) -> OutboundMessageRead:
     """Try a failed or undelivered approved message again. Does not re-approve."""
     gate.retry(message_id, requested_by=current_user)

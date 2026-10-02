@@ -44,8 +44,11 @@ to words and makes it the only route to any sender.
 - **Audit in the same transaction.** Draft, auto-approve, approve, edit, reject,
   retry and every dispatch attempt each write an `audit_log` row atomically with the
   change. The body isn't copied into the log.
-- **Roles.** Owners and Admins can draft, Members can't. Only Owners decide, read the
-  queue or retry.
+- **Roles** (agreed with claude-one on #29). The **Owner, or the Admin of the team a
+  message belongs to**, may read, approve, edit, reject and retry it. A message belongs
+  to the owner of its task, its internal recipient and its drafter. The gate is built
+  with the caller's `Visibility`, so another team's message is a 404. Members can
+  neither draft nor decide.
 - **Failures are states, not errors.** A connector exception marks the message
   `failed` with a plain-English reason, logged in full server-side. Without a
   connector, an approved message waits with a reason, and `retry` re-dispatches
@@ -56,7 +59,7 @@ to words and makes it the only route to any sender.
 - `GET ""`: queue, defaults to pending, filter by `status` and `audience`
 - `POST ""`: draft (Owner/Admin), honours `Idempotency-Key`
 - `GET /{id}`
-- `POST /{id}/approve`, `/edit`, `/reject`, `/retry` (Owner)
+- `POST /{id}/approve`, `/edit`, `/reject`, `/retry` (Owner, or the team's Admin)
 - `PATCH /company` accepts `auto_send_internal_followups`
 
 ## Agent

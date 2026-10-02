@@ -185,6 +185,7 @@ class MeetingService(TenantService):
                     source_ref=source_ref,
                     meeting_title=meeting.title,
                     occurred_on=meeting.recorded_at.date() if meeting.recorded_at else None,
+                    meeting_id=meeting.id,
                 )
                 extracted_tasks = ext_res.get("tasks_extracted", [])
 
@@ -227,6 +228,7 @@ class MeetingService(TenantService):
                 source_ref=source_ref,
                 meeting_title=meeting.title,
                 occurred_on=meeting.recorded_at.date() if meeting.recorded_at else None,
+                meeting_id=meeting.id,
             )
             extracted_tasks = ext_res.get("tasks_extracted", [])
 

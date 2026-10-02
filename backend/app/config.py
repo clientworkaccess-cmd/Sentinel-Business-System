@@ -13,6 +13,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 #: anyone who has read the repo, which means reading any tenant.
 PLACEHOLDER_JWT_SECRET = "change-me-generate-a-real-random-value"
 MIN_JWT_SECRET_LENGTH = 32
+#: Environments where a placeholder secret is tolerated. Anything else — including a
+#: typo or an unset value on a server — must have a real key.
+DEV_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
 
 # The .env lives at the repo root, one level above backend/.
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -52,13 +55,14 @@ class Settings(BaseSettings):
     hydra_timeout_seconds: float = 30.0
 
     @model_validator(mode="after")
-    def refuse_weak_jwt_secret_in_production(self) -> "Settings":
-        """Fail at startup, not at the first forged token."""
+    def refuse_weak_jwt_secret_outside_dev(self) -> "Settings":
+        """Fail at startup, not at the first forged token. Fails closed: only an
+        explicitly local environment may run on the placeholder."""
         weak = (
             self.jwt_secret_key == PLACEHOLDER_JWT_SECRET
             or len(self.jwt_secret_key) < MIN_JWT_SECRET_LENGTH
         )
-        if self.is_production and weak:
+        if weak and self.environment.strip().lower() not in DEV_ENVIRONMENTS:
             raise ValueError(
                 "JWT_SECRET_KEY is the placeholder or shorter than "
                 f"{MIN_JWT_SECRET_LENGTH} characters. Generate one with: "

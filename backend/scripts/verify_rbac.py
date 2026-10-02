@@ -78,10 +78,11 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         db.flush()
         return u
 
-    def task(owner: Employee, title: str, source_ref: str | None = None) -> Task:
+    def task(owner: Employee, title: str, from_meeting: Meeting | None = None) -> Task:
         t = Task(company_id=cid, title=title, status=TaskStatus.APPROVED,
                  owner_employee_id=owner.id, idempotency_key=f"rbac-{tag}-{title}",
-                 source_ref=source_ref)
+                 source_ref=f"Meeting: {from_meeting.title}" if from_meeting else None,
+                 meeting_id=from_meeting.id if from_meeting else None)
         db.add(t)
         db.flush()
         return t
@@ -128,15 +129,20 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
             AdminAssignment(company_id=cid, user_id=lisa_u.id, team_id=mobile.id),
         ])
 
-        t_alyan = task(alyan, "alyan ships mobile build")
-        t_hira = task(hira, "hira fixes push")
-        t_usman = task(usman, "usman migrates db")
-        t_mark = task(mark, "mark renews indus", source_ref="Meeting: Sales Sync")
-        task(saim, "saim hires backend")
-
         m_mobile = meeting("Mobile Standup", speaker=alyan)
         m_platform = meeting("Platform Standup", speaker=usman)
         m_sales = meeting("Sales Sync")  # linked only through Mark's task
+        # Two meetings with one title (#29 review): Alyan owns a task from
+        # Engineering's, and must not be handed Sales' transcript because of the name.
+        m_weekly_eng = meeting("Weekly Standup")
+        m_weekly_sales = meeting("Weekly Standup", speaker=mark)
+
+        t_alyan = task(alyan, "alyan ships mobile build")
+        t_alyan_weekly = task(alyan, "alyan posts weekly notes", from_meeting=m_weekly_eng)
+        t_hira = task(hira, "hira fixes push")
+        t_usman = task(usman, "usman migrates db")
+        t_mark = task(mark, "mark renews indus", from_meeting=m_sales)
+        task(saim, "saim hires backend")
         db.commit()
 
         def auth(u: User) -> dict[str, str]:
@@ -148,8 +154,9 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         # --- Member -----------------------------------------------------------------
         print("\n1. Member (Alyan) sees only themselves")
         r = client.get("/api/v1/tasks", headers=ah)
-        check("lists only their own tasks", r.status_code == 200 and ids(r) == {str(t_alyan.id)}, r.text[:200])
-        check("total counts only their own", r.json().get("total") == 1, r.json().get("total"))
+        own = {str(t_alyan.id), str(t_alyan_weekly.id)}
+        check("lists only their own tasks", r.status_code == 200 and ids(r) == own, r.text[:200])
+        check("total counts only their own", r.json().get("total") == 2, r.json().get("total"))
         for label, t in (("a squad-mate's", t_hira), ("another team's", t_usman), ("another department's", t_mark)):
             r = client.get(f"/api/v1/tasks/{t.id}", headers=ah)
             check(f"{label} task is 404, not 403", r.status_code == 404, r.status_code)
@@ -163,9 +170,16 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
               client.get(f"/api/v1/employees/{hira.id}/tasks", headers=ah).status_code == 404)
 
         r = client.get("/api/v1/meetings", headers=ah)
-        check("sees only meetings they spoke in", r.status_code == 200 and ids(r) == {str(m_mobile.id)}, r.text[:200])
+        check("sees meetings they spoke in or own a task from",
+              r.status_code == 200 and ids(r) == {str(m_mobile.id), str(m_weekly_eng.id)}, r.text[:200])
         for m in (m_platform, m_sales):
             check(f"'{m.title}' is 404", client.get(f"/api/v1/meetings/{m.id}", headers=ah).status_code == 404)
+        check("another team's meeting with the same title is 404",
+              client.get(f"/api/v1/meetings/{m_weekly_sales.id}", headers=ah).status_code == 404)
+        r = client.get(f"/api/v1/meetings/{m_weekly_eng.id}", headers=ah)
+        check("…and their own lists only their task, not Sales'",
+              r.status_code == 200
+              and {t["id"] for t in r.json().get("extracted_tasks", [])} == {str(t_alyan_weekly.id)}, r.text[:300])
 
         check("knowledge graph is refused", client.get("/api/v1/knowledge/graph", headers=ah).status_code == 403)
         check("cannot create a task", client.post("/api/v1/tasks", headers=ah, json={"title": "x"}).status_code == 403)
@@ -195,7 +209,7 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         check("Sales member record is 404", client.get(f"/api/v1/employees/{mark.id}", headers=sh).status_code == 404)
         r = client.get("/api/v1/meetings", headers=sh)
         check("sees Engineering meetings, not Sales",
-              r.status_code == 200 and ids(r) == {str(m_mobile.id), str(m_platform.id)}, r.text[:200])
+              r.status_code == 200 and ids(r) == {str(m_mobile.id), str(m_platform.id), str(m_weekly_eng.id)}, r.text[:200])
         check("Sales meeting is 404", client.get(f"/api/v1/meetings/{m_sales.id}", headers=sh).status_code == 404)
         check("knowledge graph is refused", client.get("/api/v1/knowledge/graph", headers=sh).status_code == 403)
         r = client.get("/api/v1/org/teams", headers=sh)
@@ -215,9 +229,9 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         # --- Owner -------------------------------------------------------------------
         print("\n4. Owner sees everything")
         r = client.get("/api/v1/tasks", headers=oh)
-        check("every task", r.status_code == 200 and r.json()["total"] == 5, r.json().get("total"))
+        check("every task", r.status_code == 200 and r.json()["total"] == 6, r.json().get("total"))
         r = client.get("/api/v1/meetings", headers=oh)
-        check("every meeting", r.status_code == 200 and len(ids(r)) == 3, r.text[:200])
+        check("every meeting", r.status_code == 200 and len(ids(r)) == 5, r.text[:200])
 
         # --- Assignments and role changes -------------------------------------------
         print("\n5. Assignments, role changes, tenancy")
@@ -252,6 +266,18 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         stale = create_access_token(user_id=alyan_u.id, company_id=cid, role="owner")
         check("a token claiming a role the user lacks is rejected",
               client.get("/api/v1/tasks", headers={"Authorization": f"Bearer {stale}"}).status_code == 401)
+
+        check("before a password change, the Member's token works",
+              client.get("/api/v1/tasks", headers=ah).status_code == 200)
+        r = client.patch(f"/api/v1/employees/{alyan.id}/login", headers=oh, json={"password": "y" * 12})
+        check("owner resets the Member's password", r.status_code == 200, r.status_code)
+        check("…which ends their existing sessions", client.get("/api/v1/tasks", headers=ah).status_code == 401)
+        db.expire_all()
+        fresh = db.get(User, alyan_u.id)
+        retoken = create_access_token(user_id=fresh.id, company_id=cid, role=fresh.role,
+                                      token_version=fresh.token_version)
+        check("…while a token at the new version works",
+              client.get("/api/v1/tasks", headers={"Authorization": f"Bearer {retoken}"}).status_code == 200)
 
     finally:
         db.rollback()

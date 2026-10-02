@@ -50,8 +50,9 @@ def get_current_user(
 
     The user is re-checked against the token's company_id, so a token that survives
     a user being moved between tenants stops working rather than following them.
-    The role claim must also still match the row: a promotion or demotion ends every
-    session issued under the old role instead of letting it run to expiry.
+    The role and token-version claims must also still match the row: a role change,
+    password change or deactivation ends every session issued before it, instead of
+    letting them run to expiry.
     """
     if not token:
         raise NotAuthenticatedError()
@@ -64,11 +65,12 @@ def get_current_user(
         user_id = uuid.UUID(claims["sub"])
         company_id = uuid.UUID(claims["company_id"])
         role_claim = str(claims["role"])
-    except (KeyError, ValueError):
+        version_claim = int(claims.get("ver", 0))
+    except (KeyError, TypeError, ValueError):
         raise NotAuthenticatedError(_SESSION_INVALID) from None
 
     user = get_user_by_id(db, user_id, company_id)
-    if user is None or user.role.value != role_claim:
+    if user is None or user.role.value != role_claim or user.token_version != version_claim:
         raise NotAuthenticatedError(_SESSION_INVALID)
     if not user.is_active:
         raise InactiveUserError()

@@ -103,10 +103,18 @@ class TaskRepository(TenantScopedRepository[Task]):
         return stmt
 
     def list_for_meeting(self, *, title: str, meeting_id: uuid.UUID) -> Sequence[Task]:
-        """Tasks extracted from one meeting, newest first, within this viewer's reach."""
+        """Tasks extracted from one meeting, newest first, within this viewer's reach.
+
+        By ``meeting_id``. Tasks extracted before that column existed fall back to
+        their exact "Meeting: {title}" citation — still visibility-scoped, so the
+        fallback can only mis-attribute a task the viewer could read anyway.
+        """
+        legacy = Task.meeting_id.is_(None) & (
+            (Task.source_ref == f"Meeting: {title}") | (Task.source_ref == str(meeting_id))
+        )
         stmt = (
             self._scoped()
-            .where(Task.source_ref.ilike(f"%{title}%") | (Task.source_ref == str(meeting_id)))
+            .where((Task.meeting_id == meeting_id) | legacy)
             .order_by(Task.created_at.desc())
         )
         return self.db.execute(stmt).scalars().all()
