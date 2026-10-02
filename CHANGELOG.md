@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.20.0] - 2026-10-02
+
+### Added
+- `/brain/meetings` (#9): seven meetings across Zoom, Meet, Fireflies, Otter and Fathom, each with decisions, action items and transcript excerpts. Client-facing items carry a Sentinel-drafted message that waits for Approve / Edit / Reject: only the Owner, or the Admin of the meeting's team, may approve.
+- Voice notes: record → transcribe → action items extracted (`demo/extract.ts`, a demo heuristic; production uses the backend Extractor). With no microphone, "Use a sample note" shows the same flow.
+
+### Changed
+- Admins now see work their people are part of in other teams (e.g. a client call their engineers attended), in `visibleItems` and the team scope alike. Members are unchanged.
+
 ## [0.19.0] - 2026-10-02
 
 ### Added

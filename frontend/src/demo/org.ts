@@ -369,6 +369,18 @@ const storyItems: BrainItem[] = [
     relatedIds: ['proj-kestrel-v2'],
     summary: 'Cut onboarding from 6 screens to 3. Usability test showed elderly patients dropping at OTP step.',
   },
+  {
+    id: 'mtg-saffron-uat-prep', kind: 'meeting', title: 'Saffron UAT prep', date: '2026-10-02',
+    ownerIds: [P('Komal Rizvi'), P('Sadia Batool'), P('Maryam Aslam')], teamId: 'qa', departmentId: 'delivery', source: 'otter',
+    relatedIds: ['proj-saffron-ordering', 'task-saffron-uat', 'client-saffron'],
+    summary: 'UAT runs Oct 7–9 at the Gulberg and DHA branches. Kitchen display needs a large-font mode before staff test it.',
+  },
+  {
+    id: 'mtg-crescent-qbr', kind: 'meeting', title: 'Crescent Mobility quarterly review', date: '2026-09-25', external: true,
+    ownerIds: [P('Sara Imtiaz'), P('Shahzaib Qadir'), P('Nida Pervaiz')], teamId: 'client-success', departmentId: 'delivery', source: 'fathom',
+    relatedIds: ['client-crescent', 'task-crescent-upsell'],
+    summary: 'Phase 1 dashboard is in daily use by 40 dispatchers. Crescent asked for a driver app proposal for phase 2.',
+  },
 
   // Decisions
   {
