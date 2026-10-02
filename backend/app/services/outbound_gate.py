@@ -30,9 +30,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, exists, false, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.visibility import Visibility
 from app.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.audit_log import AuditLog
 from app.models.company import Company
@@ -43,6 +44,7 @@ from app.models.enums import (
     OutboundStatus,
 )
 from app.models.outbound_message import OutboundMessage
+from app.models.task import Task
 from app.models.user import User
 from app.repositories.task import TaskRepository
 from app.services.base import TenantService
@@ -129,15 +131,42 @@ def _employee_address(channel: MessageChannel, employee) -> str | None:
 
 
 class OutboundGate(TenantService):
-    """Draft, decide, dispatch. Routes and agent tools both go through this."""
+    """Draft, decide, dispatch. Routes and agent tools both go through this.
 
-    def __init__(self, db: Session, company_id: uuid.UUID) -> None:
-        super().__init__(db, company_id)
+    Built with a viewer, the gate sees only messages in that viewer's reach, which is
+    how "the Owner, or the Admin of the team it belongs to, may approve" is enforced
+    (agreed on #29). A message belongs to the people behind it: the owner of the task
+    it is about, its internal recipient, and whoever drafted it. Out of reach is 404.
+    Without a viewer (agent tools, connectors) it acts for the whole company — and
+    still cannot clear an external message, which needs a human ``decided_by``.
+    """
+
+    def __init__(
+        self, db: Session, company_id: uuid.UUID, visibility: Visibility | None = None
+    ) -> None:
+        super().__init__(db, company_id, visibility)
 
     # --- reads ---------------------------------------------------------------
 
+    def _filters(self) -> list[ColumnElement[bool]]:
+        clauses: list[ColumnElement[bool]] = [OutboundMessage.company_id == self.company_id]
+        vis = self.visibility
+        if vis is not None and not vis.sees_all:
+            people = vis.employee_ids
+            if not people:
+                clauses.append(false())
+            else:
+                clauses.append(or_(
+                    exists().where(Task.id == OutboundMessage.task_id,
+                                   Task.owner_employee_id.in_(people)),
+                    OutboundMessage.recipient_employee_id.in_(people),
+                    exists().where(User.id == OutboundMessage.drafted_by_user_id,
+                                   User.employee_id.in_(people)),
+                ))
+        return clauses
+
     def _scoped(self):
-        return select(OutboundMessage).where(OutboundMessage.company_id == self.company_id)
+        return select(OutboundMessage).where(*self._filters())
 
     def get_or_404(self, message_id: uuid.UUID, *, lock: bool = False) -> OutboundMessage:
         stmt = self._scoped().where(OutboundMessage.id == message_id)
@@ -161,8 +190,7 @@ class OutboundGate(TenantService):
         count = (
             select(func.count())
             .select_from(OutboundMessage)
-            .where(OutboundMessage.company_id == self.company_id,
-                   OutboundMessage.status.in_(selected))
+            .where(*self._filters(), OutboundMessage.status.in_(selected))
         )
         if audience is not None:
             stmt = stmt.where(OutboundMessage.audience == audience)
@@ -246,7 +274,7 @@ class OutboundGate(TenantService):
         if not body.strip():
             raise ValidationError("A message cannot be empty.")
         if task_id is not None:
-            if TaskRepository(self.db, self.company_id).get(task_id) is None:
+            if TaskRepository(self.db, self.company_id, self.visibility).get(task_id) is None:
                 raise ValidationError("That task does not exist in this company.")
 
         recipient = self.classify_recipient(

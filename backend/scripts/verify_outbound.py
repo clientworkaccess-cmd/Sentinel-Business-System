@@ -25,7 +25,11 @@ from app.core.security import create_access_token, hash_password
 from app.database import SessionLocal
 from app.main import app
 from app.models import (
+    AdminAssignment,
     AuditLog,
+    Department,
+    Task,
+    TaskStatus,
     Company,
     Employee,
     MessageAudience,
@@ -93,6 +97,19 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         admin = user(cid, UserRole.ADMIN, "admin", saim)
         member = user(cid, UserRole.MEMBER, "member", hira)
         stranger = user(other_id, UserRole.OWNER, "stranger")
+        # Saim administers Engineering, where Hira works; Kamran is an Admin of nothing.
+        eng = Department(company_id=cid, name="Engineering")
+        db.add(eng)
+        db.flush()
+        hira.department_id = eng.id
+        kamran = Employee(company_id=cid, name="Kamran")
+        db.add(kamran)
+        db.flush()
+        idle_admin = user(cid, UserRole.ADMIN, "idle", kamran)
+        db.add(AdminAssignment(company_id=cid, user_id=admin.id, department_id=eng.id))
+        hira_task = Task(company_id=cid, title="Send Kestrel the revised timeline", status=TaskStatus.APPROVED,
+                         owner_employee_id=hira.id, idempotency_key=f"gate-{tag}")
+        db.add(hira_task)
         db.commit()
 
         def auth(u: User) -> dict[str, str]:
@@ -142,7 +159,9 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         print("\n2. Only an Owner decides")
         check("a Member cannot draft", client.post(base, headers=mh, json=client_email).status_code == 403)
         check("an Admin can draft", client.post(base, headers=adh, json=client_email).status_code == 201)
-        check("an Admin cannot approve", client.post(f"{base}/{ext['id']}/approve", headers=adh).status_code == 403)
+        check("an Admin cannot find another team's message (404)",
+              client.post(f"{base}/{ext['id']}/approve", headers=adh).status_code == 404)
+        check("…nor list it", ext["id"] not in {m["id"] for m in client.get(base, headers=adh).json()["items"]})
         check("a Member cannot approve", client.post(f"{base}/{ext['id']}/approve", headers=mh).status_code == 403)
         check("another company cannot see it", client.get(f"{base}/{ext['id']}", headers=sh).status_code == 404)
         check("another company cannot approve it", client.post(f"{base}/{ext['id']}/approve", headers=sh).status_code == 404)
@@ -174,6 +193,24 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
               r.status_code == 200 and r.json()["status"] == "rejected" and email.sent and len(email.sent) == 1, r.text[:200])
         check("…audited", "outbound.reject" in audits(internal["id"]))
         check("approving a rejected message is 409", client.post(f"{base}/{internal['id']}/approve", headers=oh).status_code == 409)
+
+        # --- the team's Admin decides --------------------------------------------------
+        print("\n3b. The Admin of the team a message belongs to may decide")
+        ih = auth(idle_admin)
+        r = client.post(base, headers=oh, json={**client_email, "task_id": str(hira_task.id),
+                                                "body": "Kestrel: the new date is Oct 20."})
+        team_msg = r.json()
+        queue = {m["id"] for m in client.get(base, headers=adh).json()["items"]}
+        check("a message about Hira's task is in her Admin's queue", team_msg.get("id") in queue, queue)
+        check("an Admin of another team cannot see it",
+              client.get(f"{base}/{team_msg['id']}", headers=ih).status_code == 404)
+        check("…or approve it", client.post(f"{base}/{team_msg['id']}/approve", headers=ih).status_code == 404)
+        before = len(email.sent)
+        r = client.post(f"{base}/{team_msg['id']}/approve", headers=adh)
+        check("her Admin approves it and it is sent, recorded as theirs",
+              r.status_code == 200 and r.json()["status"] == "sent"
+              and r.json()["decided_by_user_id"] == str(admin.id), r.text[:200])
+        check("…exactly once", len(email.sent) == before + 1)
 
         # --- policy --------------------------------------------------------------------
         print("\n4. Company policy auto-sends internal follow-ups only")
