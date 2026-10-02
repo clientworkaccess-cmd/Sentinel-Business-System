@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.0] - 2026-10-02
+
+### Added
+- `/brain/chat` with live Qwen answers (`/api/brain/chat`), voice record → transcribe, live dictation and spoken replies (`/api/brain/transcribe`, `/api/brain/speak`, ElevenLabs). Keys go in `frontend/.env.local` (see `frontend/.env.example`). Without them, chat serves tuned scripted answers and voice uses the browser's speech APIs, so the demo never errors.
+- The chat route trusts no client claim about the role: the persona must hold the role it asks as, and grounding only ever reads `itemsInScope`, so a Member cannot get Owner answers. `BRAIN_CHAT_PREFER_SCRIPTED=1` pins the tuned answers for rehearsed runs.
+
 ## [0.17.0] - 2026-10-02
 
 ### Added
