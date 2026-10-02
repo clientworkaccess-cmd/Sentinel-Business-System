@@ -1,7 +1,8 @@
 """User — login identity only.
 
-A founder is a User with role=founder and usually no Employee row.
-An employee is an Employee row that may later gain a User.
+An Owner (formerly "founder") is a User with role=owner and usually no Employee row.
+Admins and Members are Employee rows that have gained a User. An Admin's reach is
+the departments and teams in ``admin_assignments``, not anything on this row.
 """
 
 import uuid
@@ -35,7 +36,7 @@ class User(UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, Base):
     role: Mapped[UserRole] = mapped_column(
         pg_enum(UserRole, "user_role"),
         nullable=False,
-        server_default=UserRole.EMPLOYEE.value,
+        server_default=UserRole.MEMBER.value,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
 

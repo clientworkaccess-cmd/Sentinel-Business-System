@@ -8,12 +8,17 @@ import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, or_, select
+from typing import TYPE_CHECKING
+
+from sqlalchemy import ColumnElement, func, or_, select
 
 from app.models.enums import TaskStatus
 from app.models.status_update import StatusUpdate
 from app.models.task import Task
 from app.repositories.base import TenantScopedRepository
+
+if TYPE_CHECKING:
+    from app.core.visibility import Visibility
 
 #: A task in one of these is finished — it is never overdue and never chased.
 TERMINAL_STATUSES = (TaskStatus.DONE, TaskStatus.REJECTED)
@@ -23,6 +28,10 @@ SORTABLE = {"deadline": Task.deadline, "created_at": Task.created_at, "title": T
 
 class TaskRepository(TenantScopedRepository[Task]):
     model = Task
+
+    def _visible_clause(self, visibility: "Visibility") -> ColumnElement[bool]:
+        """A task is visible through its owner. An unowned task is the Owner's alone."""
+        return visibility.employee_clause(Task.owner_employee_id)
 
     def list_filtered(
         self,
@@ -59,7 +68,7 @@ class TaskRepository(TenantScopedRepository[Task]):
     ) -> int:
         """Total matching rows, for the pagination header."""
         stmt = self._apply_filters(
-            select(func.count()).select_from(Task).where(Task.company_id == self.company_id),
+            select(func.count()).select_from(Task).where(*self._filters()),
             statuses=statuses,
             owner_employee_id=owner_employee_id,
             overdue=overdue,
@@ -92,6 +101,15 @@ class TaskRepository(TenantScopedRepository[Task]):
             )
             stmt = stmt.where(past_due if overdue else ~past_due)
         return stmt
+
+    def list_for_meeting(self, *, title: str, meeting_id: uuid.UUID) -> Sequence[Task]:
+        """Tasks extracted from one meeting, newest first, within this viewer's reach."""
+        stmt = (
+            self._scoped()
+            .where(Task.source_ref.ilike(f"%{title}%") | (Task.source_ref == str(meeting_id)))
+            .order_by(Task.created_at.desc())
+        )
+        return self.db.execute(stmt).scalars().all()
 
     def find_by_idempotency_key(self, key: str) -> Task | None:
         return self.db.execute(

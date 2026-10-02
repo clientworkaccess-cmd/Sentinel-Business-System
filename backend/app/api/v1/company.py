@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.dependencies import CompanyId, CompanyRepo, DbSession, FounderUser
+from app.dependencies import CompanyId, CompanyRepo, DbSession, OwnerUser
 from app.exceptions import NotFoundError
 from app.models.company import Company
 from app.models.task import Task
@@ -28,7 +28,7 @@ def _read(company: Company) -> CompanyRead:
 
 
 @router.get("", response_model=CompanyRead)
-def get_company(repo: CompanyRepo, company_id: CompanyId, _: FounderUser) -> CompanyRead:
+def get_company(repo: CompanyRepo, company_id: CompanyId, _: OwnerUser) -> CompanyRead:
     company = repo.get(company_id)
     if company is None:
         raise NotFoundError("Company not found.")
@@ -40,7 +40,7 @@ def update_company(
     payload: CompanyUpdate,
     repo: CompanyRepo,
     company_id: CompanyId,
-    _: FounderUser,
+    _: OwnerUser,
     db: DbSession,
 ) -> CompanyRead:
     """Rename the company, configure the assistant, set the escalation window."""

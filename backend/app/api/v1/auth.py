@@ -5,7 +5,12 @@ import logging
 from fastapi import APIRouter
 
 from app.config import settings
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import (
+    DUMMY_PASSWORD_HASH,
+    create_access_token,
+    hash_password,
+    verify_password,
+)
 from app.knowledge.provisioning import ensure_knowledge_database
 from app.dependencies import CurrentUser, DbSession
 from app.exceptions import InactiveUserError, InvalidCredentialsError, NotFoundError
@@ -21,7 +26,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/signup", response_model=TokenResponse)
 def signup(payload: SignupRequest, db: DbSession) -> TokenResponse:
-    """Self-provision a company tenant and founder user account.
+    """Self-provision a company tenant and its owner account.
 
     Initializes persona_config.company_context with the provided company description
     and issues an access token for immediate authenticated onboarding.
@@ -40,7 +45,7 @@ def signup(payload: SignupRequest, db: DbSession) -> TokenResponse:
         email=payload.founder_email,
         password_hash=hash_password(payload.founder_password),
         full_name=payload.founder_full_name,
-        role=UserRole.FOUNDER,
+        role=UserRole.OWNER,
     )
 
     db.commit()
@@ -67,9 +72,13 @@ def login(payload: LoginRequest, db: DbSession) -> TokenResponse:
     """
     user = find_user_for_login(db, payload.email)
 
-    if user is None or not verify_password(payload.password, user.password_hash):
-        # Log the attempt, never the password. See docs/rules/security.md.
-        logger.info("Failed login attempt for %s", payload.email)
+    # An unknown email still pays for one bcrypt check, so response time does not
+    # reveal whether the account exists.
+    password_hash = user.password_hash if user is not None else DUMMY_PASSWORD_HASH
+    if not verify_password(payload.password, password_hash) or user is None:
+        # Neither the password nor the email is logged: both are personal data.
+        # See docs/rules/security.md.
+        logger.info("Failed login attempt")
         raise InvalidCredentialsError()
 
     if not user.is_active:

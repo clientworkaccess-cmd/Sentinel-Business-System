@@ -24,10 +24,21 @@ def pg_enum(enum_cls: type[enum.Enum], name: str, **kwargs: Any) -> SAEnum:
 
 
 class UserRole(str, enum.Enum):
-    """Two roles, checked by a dependency. No RBAC tables — see the plan."""
+    """Owner sees everything, Admin sees the teams they manage, Member sees self.
 
-    FOUNDER = "founder"
-    EMPLOYEE = "employee"
+    What each role may *read* is resolved once per request by
+    ``app.core.visibility`` — never by a role check inside a route.
+    """
+
+    OWNER = "owner"
+    ADMIN = "admin"
+    MEMBER = "member"
+
+    # Deprecated aliases from the founder/employee model, kept so code written
+    # against the old names keeps working. Aliases are not enum members: they do not
+    # appear in iteration, so the Postgres enum type only ever sees the three above.
+    FOUNDER = "owner"
+    EMPLOYEE = "member"
 
 
 class TaskStatus(str, enum.Enum):

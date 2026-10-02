@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, UploadFile, status
 
-from app.dependencies import DbSession, FounderUser
+from app.dependencies import CurrentUser, DbSession, OwnerUser, Viewer
 from app.exceptions import ValidationError
 from app.schemas.meeting import MeetingDetailRead, MeetingSummaryRead, MeetingTextCreate
 from app.schemas.task import TaskSummary
@@ -16,7 +16,7 @@ router = APIRouter(tags=["meetings"])
 
 @router.post("/audio", response_model=MeetingDetailRead, status_code=status.HTTP_201_CREATED)
 async def upload_meeting_audio(
-    current_user: FounderUser,
+    current_user: OwnerUser,
     db: DbSession,
     file: UploadFile = File(...),
     title: str | None = Form(None),
@@ -47,7 +47,7 @@ async def upload_meeting_audio(
 @router.post("/text", response_model=MeetingDetailRead, status_code=status.HTTP_201_CREATED)
 def create_text_meeting(
     payload: MeetingTextCreate,
-    current_user: FounderUser,
+    current_user: OwnerUser,
     db: DbSession,
 ) -> MeetingDetailRead:
     """Ingest transcript text or notes directly and extract action items."""
@@ -67,11 +67,16 @@ def create_text_meeting(
 
 @router.get("", response_model=list[MeetingSummaryRead])
 def list_meetings(
-    current_user: FounderUser,
+    current_user: CurrentUser,
+    viewer: Viewer,
     db: DbSession,
 ) -> list[MeetingSummaryRead]:
-    """List all past meetings and transcription status for the tenant."""
-    svc = MeetingService(db, current_user.company)
+    """Past meetings the caller may see, with transcription status.
+
+    Owner: all of them. Admin and Member: meetings someone in their reach spoke in
+    or that produced a task one of them owns.
+    """
+    svc = MeetingService(db, current_user.company, viewer)
     meetings = svc.list_meetings()
     return [MeetingSummaryRead.model_validate(m) for m in meetings]
 
@@ -79,11 +84,15 @@ def list_meetings(
 @router.get("/{meeting_id}", response_model=MeetingDetailRead)
 def get_meeting(
     meeting_id: uuid.UUID,
-    current_user: FounderUser,
+    current_user: CurrentUser,
+    viewer: Viewer,
     db: DbSession,
 ) -> MeetingDetailRead:
-    """Retrieve full meeting details, transcript segments, and extracted tasks."""
-    svc = MeetingService(db, current_user.company)
+    """A meeting's details, transcript, and the extracted tasks the caller may see.
+
+    404 if the meeting is out of the caller's reach.
+    """
+    svc = MeetingService(db, current_user.company, viewer)
     meeting = svc.get_meeting_or_404(meeting_id)
     tasks = svc.get_meeting_tasks(meeting)
     detail = MeetingDetailRead.model_validate(meeting)
@@ -94,7 +103,7 @@ def get_meeting(
 @router.get("/{meeting_id}/delete-preview")
 def preview_meeting_delete(
     meeting_id: uuid.UUID,
-    current_user: FounderUser,
+    current_user: OwnerUser,
     db: DbSession,
 ) -> dict:
     """What deleting this meeting would remove. Changes nothing.
@@ -110,7 +119,7 @@ def preview_meeting_delete(
 @router.delete("/{meeting_id}")
 def delete_meeting(
     meeting_id: uuid.UUID,
-    current_user: FounderUser,
+    current_user: OwnerUser,
     db: DbSession,
 ) -> dict:
     """Permanently delete a meeting and every fact extracted from it.

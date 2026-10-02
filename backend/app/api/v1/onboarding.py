@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.dependencies import DbSession, FounderUser, OnboardingSvc
+from app.dependencies import DbSession, OwnerUser, OnboardingSvc
 from app.schemas.employee import EmployeeSummary
 from app.schemas.onboarding import BulkEmployeeImport, BulkImportResponse, OnboardingStatus
 
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
 @router.post("/employees/bulk", response_model=BulkImportResponse)
 def import_employees(
-    payload: BulkEmployeeImport, service: OnboardingSvc, _: FounderUser, db: DbSession
+    payload: BulkEmployeeImport, service: OnboardingSvc, _: OwnerUser, db: DbSession
 ) -> BulkImportResponse:
     """Import an org chart in one call.
 
@@ -33,7 +33,7 @@ def import_employees(
 
 
 @router.get("/status", response_model=OnboardingStatus)
-def onboarding_status(service: OnboardingSvc, _: FounderUser) -> OnboardingStatus:
+def onboarding_status(service: OnboardingSvc, _: OwnerUser) -> OnboardingStatus:
     """What is configured and what is still missing — the setup checklist.
 
     `employees_without_slack` is the one that matters operationally: those people

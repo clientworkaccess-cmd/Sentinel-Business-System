@@ -10,7 +10,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Query, Response, status
 
-from app.dependencies import DbSession, FounderUser, TaskSvc
+from app.dependencies import DbSession, OwnerUser, TaskSvc, Viewer
 from app.models.enums import TaskStatus
 from app.models.task import Task
 from app.schemas.task import (
@@ -35,7 +35,7 @@ def _to_summary(task: Task, owner_names: dict[uuid.UUID, str]) -> TaskSummary:
 def create_task(
     payload: TaskCreate,
     service: TaskSvc,
-    current_user: FounderUser,
+    current_user: OwnerUser,
     db: DbSession,
     response: Response,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -63,7 +63,7 @@ def create_task(
 @router.get("", response_model=TaskListResponse)
 def list_tasks(
     service: TaskSvc,
-    _: FounderUser,
+    _: Viewer,
     status_filter: Annotated[list[TaskStatus] | None, Query(alias="status")] = None,
     owner_employee_id: uuid.UUID | None = None,
     overdue: bool | None = None,
@@ -73,7 +73,12 @@ def list_tasks(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> TaskListResponse:
-    """List tasks. Returns summaries only — use the detail route for one task."""
+    """List tasks the caller may see. Returns summaries only — use the detail route for one.
+
+    Owner: every task. Admin: tasks owned by people in their teams. Member: their own.
+    The narrowing happens in the repository (TaskSvc is built with the Viewer), so a
+    filter like ``owner_employee_id`` for someone out of reach returns an empty page.
+    """
     filters = {
         "statuses": status_filter,
         "owner_employee_id": owner_employee_id,
@@ -92,8 +97,8 @@ def list_tasks(
 
 
 @router.get("/{task_id}", response_model=TaskDetail)
-def get_task(task_id: uuid.UUID, service: TaskSvc, _: FounderUser) -> TaskDetail:
-    """One task in full, with its status timeline."""
+def get_task(task_id: uuid.UUID, service: TaskSvc, _: Viewer) -> TaskDetail:
+    """One task in full, with its status timeline. 404 if out of the caller's reach."""
     task = service.get_or_404(task_id)
     detail = TaskDetail.model_validate(task)
     detail.owner_name = service.owner_names([task]).get(task.owner_employee_id)
@@ -102,7 +107,7 @@ def get_task(task_id: uuid.UUID, service: TaskSvc, _: FounderUser) -> TaskDetail
 
 @router.patch("/{task_id}", response_model=TaskDetail)
 def update_task(
-    task_id: uuid.UUID, payload: TaskUpdate, service: TaskSvc, _: FounderUser, db: DbSession
+    task_id: uuid.UUID, payload: TaskUpdate, service: TaskSvc, _: OwnerUser, db: DbSession
 ) -> TaskDetail:
     """Edit a task. Only the fields sent are changed."""
     task = service.update(task_id, payload)
@@ -119,7 +124,7 @@ def record_status(
     task_id: uuid.UUID,
     payload: StatusUpdateCreate,
     service: TaskSvc,
-    _: FounderUser,
+    _: OwnerUser,
     db: DbSession,
 ) -> TaskDetail:
     """Append a timeline entry and move the task to that status.
@@ -136,7 +141,7 @@ def record_status(
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: uuid.UUID, service: TaskSvc, _: FounderUser, db: DbSession) -> None:
+def delete_task(task_id: uuid.UUID, service: TaskSvc, _: OwnerUser, db: DbSession) -> None:
     """Remove a task. Cascades to its timeline and approval row."""
     service.delete(task_id)
     db.commit()

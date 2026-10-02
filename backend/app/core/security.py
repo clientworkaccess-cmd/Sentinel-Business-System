@@ -4,6 +4,7 @@ The signing key is the tenancy boundary: company_id travels as a signed claim, s
 anyone who can forge a token can read any tenant. It is never taken from a request.
 """
 
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -23,6 +24,11 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
+#: Verified against when a login names an unknown email, so a miss costs the same
+#: bcrypt round as a wrong password. Random per process; it never matches anything.
+DUMMY_PASSWORD_HASH = pwd_context.hash(secrets.token_urlsafe(32))
+
+
 def verify_password(plain_password: str, password_hash: str) -> bool:
     """False rather than raising on a malformed stored hash."""
     try:
@@ -38,7 +44,11 @@ def create_access_token(
     role: UserRole | str,
     expires_delta: timedelta | None = None,
 ) -> str:
-    """Issue a token. company_id is what every downstream query is scoped by."""
+    """Issue a token. company_id is what every downstream query is scoped by.
+
+    ``role`` is checked against the user row on every request (app/dependencies.py),
+    so it is a statement the server can hold the token to, not a permission.
+    """
     expire = datetime.now(UTC) + (
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )

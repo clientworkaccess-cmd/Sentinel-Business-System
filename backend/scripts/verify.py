@@ -192,7 +192,7 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         claims = decode_access_token(token) or {}
         check(
             "token carries the right company_id and role",
-            claims.get("company_id") == str(company_a.id) and claims.get("role") == "founder",
+            claims.get("company_id") == str(company_a.id) and claims.get("role") == "owner",
         )
 
         r = client.post(
@@ -761,7 +761,7 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         emp_token = r_login.json().get("access_token", "")
         emp_auth = {"Authorization": f"Bearer {emp_token}"}
         claims_emp = decode_access_token(emp_token) or {}
-        check("token carries employee role", claims_emp.get("role") == "employee")
+        check("token carries member role", claims_emp.get("role") == "member")
 
         # 5. GET /me/tasks returns only that employee's tasks
         task_own = Task(company_id=company_a.id, title="Own Task", owner_employee_id=emp_a.id, idempotency_key=f"task-own-{suffix}")
@@ -798,9 +798,15 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
             latest_update.get("reported_by_employee_id") == str(emp_a.id) and latest_update.get("reported_via") == "dashboard",
         )
 
-        # 9. Employee token on GET /tasks -> 403. Founder token on /me/tasks -> 403.
+        # 9. Member token on GET /tasks -> only their own tasks (RBAC, #18). Owner
+        #    token on /me/tasks -> 403, since an owner has no employee row.
         r_emp_on_founder = client.get("/api/v1/tasks", headers=emp_auth)
-        check("employee token on founder route returns 403", r_emp_on_founder.status_code == 403, str(r_emp_on_founder.status_code))
+        check(
+            "member token on GET /tasks sees only their own tasks",
+            r_emp_on_founder.status_code == 200
+            and all(t["owner_employee_id"] == str(emp_a.id) for t in r_emp_on_founder.json()["items"]),
+            str(r_emp_on_founder.status_code),
+        )
 
         r_founder_on_me = client.get("/api/v1/me/tasks", headers=auth_a)
         check("founder token on /me/tasks returns 403", r_founder_on_me.status_code == 403, str(r_founder_on_me.status_code))

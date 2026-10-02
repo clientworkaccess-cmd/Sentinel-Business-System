@@ -39,16 +39,19 @@ def _tools_for(
     if entry == "chat":
         if not actor:
             raise ValueError("Chat entry requires an authenticated user actor.")
-        if actor.role == UserRole.FOUNDER:
+        if actor.role is UserRole.OWNER:
             return (
                 create_founder_task_tools(company.id, actor.id)
                 + create_employee_tools(company.id)
                 # Read-only: the founder queries settled history, never writes it.
                 + create_knowledge_read_tools(company.id, company.hydra_tenant_id)
             )
-        elif actor.role == UserRole.EMPLOYEE:
+        elif actor.role in (UserRole.ADMIN, UserRole.MEMBER):
+            # Admins get the Member tool set for now: their own tasks only. Team-wide
+            # answers arrive with visibility-filtered retrieval (#20); until then the
+            # agent must not be able to read past the caller's own work.
             if not actor.employee_id:
-                raise ValueError("Employee user has no linked employee_id.")
+                raise ValueError("Admin or member user has no linked employee_id.")
             return create_employee_task_tools(company.id, actor.id, actor.employee_id)
         else:
             raise ValueError(f"Unknown user role: {actor.role}")
@@ -80,7 +83,7 @@ def _prompt_for(
 ) -> str:
     """Render the modular on-demand system prompt."""
     if entry == "chat":
-        if actor and actor.role == UserRole.EMPLOYEE:
+        if actor and actor.role in (UserRole.ADMIN, UserRole.MEMBER):
             return render_employee_chat_prompt(company, actor)
         elif actor:
             return render_founder_chat_prompt(company, actor)

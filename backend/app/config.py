@@ -6,7 +6,13 @@ Secrets never appear in code. See docs/rules/security.md.
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: The placeholder shipped in .env.example. A token signed with it can be forged by
+#: anyone who has read the repo, which means reading any tenant.
+PLACEHOLDER_JWT_SECRET = "change-me-generate-a-real-random-value"
+MIN_JWT_SECRET_LENGTH = 32
 
 # The .env lives at the repo root, one level above backend/.
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -25,7 +31,7 @@ class Settings(BaseSettings):
     database_connection_string: str
 
     # Auth — the JWT secret is the tenancy boundary, since company_id is a signed claim.
-    jwt_secret_key: str = "change-me-generate-a-real-random-value"
+    jwt_secret_key: str = PLACEHOLDER_JWT_SECRET
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 480
 
@@ -44,6 +50,21 @@ class Settings(BaseSettings):
     # startup — the system runs without them, just with thinner chat answers.
     hydra_db_api_key: str = ""
     hydra_timeout_seconds: float = 30.0
+
+    @model_validator(mode="after")
+    def refuse_weak_jwt_secret_in_production(self) -> "Settings":
+        """Fail at startup, not at the first forged token."""
+        weak = (
+            self.jwt_secret_key == PLACEHOLDER_JWT_SECRET
+            or len(self.jwt_secret_key) < MIN_JWT_SECRET_LENGTH
+        )
+        if self.is_production and weak:
+            raise ValueError(
+                "JWT_SECRET_KEY is the placeholder or shorter than "
+                f"{MIN_JWT_SECRET_LENGTH} characters. Generate one with: "
+                "python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+            )
+        return self
 
     @property
     def sqlalchemy_url(self) -> str:

@@ -13,6 +13,7 @@ from app.api.v1 import (
     me,
     meetings,
     onboarding,
+    org,
     reports,
     tasks,
 )
@@ -30,3 +31,4 @@ api_router.include_router(knowledge.router)
 api_router.include_router(reports.router)
 api_router.include_router(meetings.router, prefix="/meetings")
 api_router.include_router(admin.router)
+api_router.include_router(org.router)

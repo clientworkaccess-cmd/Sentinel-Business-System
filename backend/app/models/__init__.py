@@ -13,18 +13,21 @@ from app.models.conversation import Conversation
 from app.models.employee import Employee
 from app.models.enums import ApprovalState, ReportedVia, TaskStatus, UserRole
 from app.models.meeting import Meeting, MeetingStatus, TranscriptSegment
+from app.models.org import AdminAssignment, Department, Team, TeamMembership
 from app.models.report import Report
 from app.models.status_update import StatusUpdate
 from app.models.task import Task
 from app.models.user import User
 
 __all__ = [
+    "AdminAssignment",
     "Approval",
     "ApprovalState",
     "AuditLog",
     "Base",
     "Company",
     "Conversation",
+    "Department",
     "Employee",
     "Meeting",
     "MeetingStatus",
@@ -33,6 +36,8 @@ __all__ = [
     "StatusUpdate",
     "Task",
     "TaskStatus",
+    "Team",
+    "TeamMembership",
     "TenantMixin",
     "TimestampMixin",
     "TranscriptSegment",

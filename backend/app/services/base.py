@@ -6,6 +6,7 @@ through a tenant-scoped repository before it is written.
 """
 
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -13,14 +14,24 @@ from app.exceptions import ValidationError
 from app.models.employee import Employee
 from app.repositories.employee import EmployeeRepository
 
+if TYPE_CHECKING:
+    from app.core.visibility import Visibility
+
 
 class TenantService:
-    """Base for services that act within one company."""
+    """Base for services that act within one company.
 
-    def __init__(self, db: Session, company_id: uuid.UUID) -> None:
+    ``visibility`` narrows every repository the service builds to one viewer's reach.
+    None means a system actor acting for the whole company (agents, the chase cycle).
+    """
+
+    def __init__(
+        self, db: Session, company_id: uuid.UUID, visibility: "Visibility | None" = None
+    ) -> None:
         self.db = db
         self.company_id = company_id
-        self.employees = EmployeeRepository(db, company_id)
+        self.visibility = visibility
+        self.employees = EmployeeRepository(db, company_id, visibility)
 
     def require_own_employee(
         self, employee_id: uuid.UUID | None, *, field: str = "employee"

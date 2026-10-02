@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.20.0] - 2026-10-02
+
+### Added
+- Owner / Admin / Member roles (#18): founders became owners and employees became members in place; Admins see the departments/teams in `admin_assignments`, managed through the new `/org` routes. Every read goes through `Viewer` (`app/core/visibility.py`) and the scoped repositories — never filter by role in a route, and a model with no `_visible_clause` returns nothing to non-Owners.
+- Watch out: tokens and `/auth/me` now say `owner|admin|member`, and a token whose role no longer matches the user is rejected, so everyone signs in once after the migration. The legacy dashboard still checks `'founder'`/`'employee'` and needs updating.
+
+### Fixed
+- Security review: failed logins no longer log the email, unknown emails cost the same bcrypt time as wrong passwords, and production refuses to start with the placeholder `JWT_SECRET_KEY`.
+
 ## [0.19.0] - 2026-10-02
 
 ### Added

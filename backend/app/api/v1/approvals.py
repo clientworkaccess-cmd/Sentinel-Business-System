@@ -9,7 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
-from app.dependencies import ApprovalSvc, DbSession, FounderUser
+from app.dependencies import ApprovalSvc, DbSession, OwnerUser
 from app.models.approval import Approval
 from app.models.enums import ApprovalState
 from app.schemas.approval import (
@@ -37,7 +37,7 @@ def _detail(approval: Approval, service) -> ApprovalDetail:
 @router.get("", response_model=ApprovalListResponse)
 def list_approvals(
     service: ApprovalSvc,
-    _: FounderUser,
+    _: OwnerUser,
     state: Annotated[list[ApprovalState] | None, Query()] = None,
 ) -> ApprovalListResponse:
     """The queue.
@@ -61,14 +61,14 @@ def list_approvals(
 
 
 @router.get("/{approval_id}", response_model=ApprovalDetail)
-def get_approval(approval_id: uuid.UUID, service: ApprovalSvc, _: FounderUser) -> ApprovalDetail:
+def get_approval(approval_id: uuid.UUID, service: ApprovalSvc, _: OwnerUser) -> ApprovalDetail:
     """One approval with the full task, including its verbatim source quote."""
     return _detail(service.get_or_404(approval_id), service)
 
 
 @router.post("/{approval_id}/approve", response_model=ApprovalDetail)
 def approve(
-    approval_id: uuid.UUID, service: ApprovalSvc, current_user: FounderUser, db: DbSession
+    approval_id: uuid.UUID, service: ApprovalSvc, current_user: OwnerUser, db: DbSession
 ) -> ApprovalDetail:
     """Approve. 409 if it was already decided — re-deciding would rewrite history."""
     approval = service.approve(approval_id, decided_by=current_user)
@@ -82,7 +82,7 @@ def edit(
     approval_id: uuid.UUID,
     payload: ApprovalEditRequest,
     service: ApprovalSvc,
-    _: FounderUser,
+    _: OwnerUser,
     db: DbSession,
 ) -> ApprovalDetail:
     """Fix a wrong owner or deadline. The task stays undecided.
@@ -101,7 +101,7 @@ def reject(
     approval_id: uuid.UUID,
     payload: ApprovalRejectRequest,
     service: ApprovalSvc,
-    current_user: FounderUser,
+    current_user: OwnerUser,
     db: DbSession,
 ) -> ApprovalDetail:
     """Reject. The task is marked rejected and nobody is contacted."""
@@ -115,7 +115,7 @@ def reject(
 def bulk_approve(
     payload: BulkApproveRequest,
     service: ApprovalSvc,
-    current_user: FounderUser,
+    current_user: OwnerUser,
     db: DbSession,
 ) -> BulkApproveResponse:
     """Approve several at once.
