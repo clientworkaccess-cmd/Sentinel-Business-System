@@ -626,7 +626,7 @@ const TEAM_TEMPLATES: Record<string, { related: string[]; templates: Template[] 
 
 const ADMIN_TEMPLATES: Template[] = [
   ['meeting', '1:1 notes', 'google_meet'],
-  ['document', 'Department Q4 plan', 'google_docs'],
+  ['document', 'Team Q4 plan', 'google_docs'],
   ['task', 'Approve team leave calendar', 'google_calendar'],
   ['thread', 'Leadership thread: budget', 'slack'],
 ];
