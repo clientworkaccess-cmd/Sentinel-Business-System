@@ -118,6 +118,7 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
                        status=BrainItemStatus.AT_RISK, external=True, occurred_on=date(2026, 10, 1))
         migration = item(BrainItemKind.PROJECT, "AWS Bahrain migration", [], department_id=eng.id)
         indus = item(BrainItemKind.DECISION, "Indus Freight discount capped at 5%", [mark])
+        cross_filed = item(BrainItemKind.MEETING, "Kestrel pricing call", [alyan], department_id=sales.id)
         sdk_task = Task(company_id=cid, title="Certify payment SDK for Kestrel", status=TaskStatus.BLOCKED,
                         owner_employee_id=alyan.id, idempotency_key=f"g-{tag}-1",
                         source_ref="Meeting: Mobile Standup")
@@ -189,6 +190,9 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         check("…its items, including one filed under it with no owner",
               {str(kestrel.id), str(migration.id), task_node} <= ids, ids)
         check("…but not Sales' decision", str(indus.id) not in ids)
+        # Filed under Sales, but an Engineering person is part of it: an Admin sees their
+        # people's work wherever it is filed (visibility.ts itemsInScope, #32 review).
+        check("…plus Sales-filed work an engineer owns", str(cross_filed.id) in ids, ids)
         check("…and Kestrel's link to it is dropped",
               str(indus.id) not in next(i for i in r.json()["items"] if i["id"] == str(kestrel.id))["relatedIds"])
         check("…people are Engineering only",

@@ -275,7 +275,11 @@ class GraphService(TenantService):
     def _items_in_scope(snap: Snapshot, level: ScopeLevel, scope_id: str) -> list[GraphItem]:
         items = list(snap.items.values())
         if level == "department":
-            return [i for i in items if i.department_id == scope_id]
+            # Mirrors visibility.ts itemsInScope('department'): items filed under the
+            # department, plus anything its people own wherever it is filed — an Admin
+            # sees the client call their engineers sat in, even when Delivery owns it.
+            in_dept = {pid for pid, p in snap.people.items() if p.department_id == scope_id}
+            return [i for i in items if i.department_id == scope_id or in_dept.intersection(i.owner_ids)]
         if level == "team":
             members = set(snap.teams[scope_id].member_ids)
             return [i for i in items if i.team_id == scope_id or members.intersection(i.owner_ids)]
