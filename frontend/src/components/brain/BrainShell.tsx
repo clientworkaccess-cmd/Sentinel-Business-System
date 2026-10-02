@@ -203,7 +203,7 @@ function AskPill() {
   return (
     <button
       onClick={() => router.push('/brain/chat')}
-      className="hidden lg:flex items-center gap-2 h-9 pl-3 pr-2 w-72 rounded-full border border-stone-border bg-white text-sm text-ash-gray hover:border-cyan-edge/60 hover:text-warm-gray transition"
+      className="hidden xl:flex items-center gap-2 h-9 pl-3 pr-2 w-72 rounded-full border border-stone-border bg-white text-sm text-ash-gray hover:border-cyan-edge/60 hover:text-warm-gray transition"
     >
       <Sparkles className="w-4 h-4 text-cyan-signal" />
       <span className="flex-1 text-left">Ask your business anything…</span>

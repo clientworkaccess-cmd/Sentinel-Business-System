@@ -158,3 +158,17 @@ body {
   font-weight: 400;
   letter-spacing: -0.02em;
 }
+
+/* Status ring on graph nodes: a slow breath, not a flash — it should draw the eye, not alarm. */
+@keyframes graph-pulse {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(1.35); }
+}
+.graph-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: graph-pulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .graph-pulse { animation: none; }
+}
