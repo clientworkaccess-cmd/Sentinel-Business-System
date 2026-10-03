@@ -8,12 +8,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agentic_ai.agents.extractor import run_transcript_extraction
+from app.agentic_ai.config import require_llm
 from app.exceptions import ConflictError, NotFoundError
 from app.models.company import Company
 from app.models.meeting import Meeting, MeetingStatus
 from app.models.task import Task
 from app.models.user import User
+from app.core.visibility import Visibility
 from app.repositories.meeting_repository import MeetingRepository
+from app.repositories.task import TaskRepository
 from app.knowledge.store import KnowledgeUnavailable, get_knowledge_store
 from app.services.asr_service import get_asr_client
 from app.services.base import TenantService
@@ -22,12 +25,13 @@ from app.services.base import TenantService
 class MeetingService(TenantService):
     """Coordinates meeting transcription, persistence, and Sentinel task extraction."""
 
-    def __init__(self, db: Session, company: Company):
+    def __init__(self, db: Session, company: Company, visibility: Visibility | None = None):
         # TenantService takes a company_id, not the Company row. The row is kept
         # separately because the extractor needs it for persona and threshold.
-        super().__init__(db, company.id)
+        super().__init__(db, company.id, visibility)
         self.company = company
-        self.meetings = MeetingRepository(db, company.id)
+        self.meetings = MeetingRepository(db, company.id, visibility)
+        self.tasks = TaskRepository(db, company.id, visibility)
 
     def list_meetings(self) -> list[Meeting]:
         """List recent meetings for tenant."""
@@ -126,17 +130,9 @@ class MeetingService(TenantService):
 
     def get_meeting_tasks(self, meeting: Meeting) -> list[Task]:
         """Fetch extracted tasks linked to this meeting."""
-        # Match tasks by source_ref or meeting title
-        source_ref_pattern = f"%{meeting.title}%"
-        stmt = (
-            select(Task)
-            .where(
-                Task.company_id == self.company.id,
-                Task.source_ref.ilike(source_ref_pattern) | (Task.source_ref == str(meeting.id))
-            )
-            .order_by(Task.created_at.desc())
-        )
-        return list(self.db.scalars(stmt).all())
+        # Through the task repository, so a viewer sees only the extracted tasks
+        # they could read anyway — not every commitment made in the room.
+        return list(self.tasks.list_for_meeting(title=meeting.title, meeting_id=meeting.id))
 
     def process_audio_meeting(
         self,
@@ -148,6 +144,7 @@ class MeetingService(TenantService):
         actor: User | None = None,
     ) -> tuple[Meeting, list[dict[str, Any]]]:
         """Transcribe audio recording and extract structured tasks into approval queue."""
+        require_llm()  # transcription and extraction both need it; fail before any row
         resolved_title = title or (filename.rsplit(".", 1)[0] if filename else "Meeting Recording")
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "webm"
 
@@ -190,6 +187,7 @@ class MeetingService(TenantService):
                     source_ref=source_ref,
                     meeting_title=meeting.title,
                     occurred_on=meeting.recorded_at.date() if meeting.recorded_at else None,
+                    meeting_id=meeting.id,
                 )
                 extracted_tasks = ext_res.get("tasks_extracted", [])
 
@@ -214,6 +212,7 @@ class MeetingService(TenantService):
         recorded_at: datetime | None = None,
     ) -> tuple[Meeting, list[dict[str, Any]]]:
         """Process direct transcript text and extract structured tasks."""
+        require_llm()
         meeting = self.meetings.create_meeting(
             title=title,
             recorded_at=recorded_at,
@@ -232,6 +231,7 @@ class MeetingService(TenantService):
                 source_ref=source_ref,
                 meeting_title=meeting.title,
                 occurred_on=meeting.recorded_at.date() if meeting.recorded_at else None,
+                meeting_id=meeting.id,
             )
             extracted_tasks = ext_res.get("tasks_extracted", [])
 

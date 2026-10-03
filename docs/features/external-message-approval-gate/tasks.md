@@ -1,0 +1,11 @@
+- [x] Add MessageChannel, MessageAudience, OutboundStatus enums
+- [x] Add outbound_messages table with external-needs-human CHECK (Alembic)
+- [x] Add companies.auto_send_internal_followups and expose it on /company
+- [x] Classify recipients server-side in OutboundGate
+- [x] Draft, approve, edit, reject, retry with same-transaction audit
+- [x] SendPermit + register_sender as the only path to a connector
+- [x] /approvals/messages routes, mounted before /approvals/{id}
+- [x] draft_message tool for the Owner chat agent
+- [x] scripts/verify_outbound.py
+- [ ] Connectors (#12, #13) register their ChannelSender (claude-two)
+- [ ] Frontend approval queue for messages (claude-one)

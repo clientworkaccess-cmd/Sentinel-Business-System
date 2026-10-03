@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
+from app.core.visibility import Visibility
 from app.exceptions import NotFoundError
 from app.models.approval import Approval
 from app.models.enums import ApprovalState, TaskStatus
@@ -23,9 +24,11 @@ from app.services.base import TenantService
 
 
 class TaskService(TenantService):
-    def __init__(self, db: Session, company_id: uuid.UUID) -> None:
-        super().__init__(db, company_id)
-        self.tasks = TaskRepository(db, company_id)
+    def __init__(
+        self, db: Session, company_id: uuid.UUID, visibility: Visibility | None = None
+    ) -> None:
+        super().__init__(db, company_id, visibility)
+        self.tasks = TaskRepository(db, company_id, visibility)
 
     # --- helpers ----------------------------------------------------------------
 
@@ -110,6 +113,7 @@ class TaskService(TenantService):
         confidence: float | None = None,
         created_by_agent: str = "extractor",
         thread_id: str | None = None,
+        meeting_id: uuid.UUID | None = None,
     ) -> tuple[Task, bool]:
         """Create a task that must be approved before anyone is contacted.
 
@@ -142,6 +146,7 @@ class TaskService(TenantService):
             source_id=source_id,
             confidence=confidence,
             created_by_agent=created_by_agent,
+            meeting_id=meeting_id,
             # status is deliberately not passed — it falls to the server default.
         )
 

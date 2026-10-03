@@ -38,6 +38,9 @@ class CompanyRead(BaseModel):
     max_chases: int = 2
     #: Confidence at or above which an extracted task skips the approval queue.
     auto_approve_threshold: float = 1.0
+    #: Internal teammate-to-teammate follow-ups go out without approval when true.
+    #: External messages always wait for a human, whatever this says.
+    auto_send_internal_followups: bool = False
     #: Never the token itself. Whether Slack is connected is all the dashboard needs,
     #: and a bot token in a JSON response is a credential in a browser's memory.
     slack_connected: bool = False
@@ -59,3 +62,4 @@ class CompanyUpdate(BaseModel):
     #: 1.0 means nothing auto-approves. Below 0.5 the founder is effectively no
     #: longer reviewing, so the floor is deliberate rather than arbitrary.
     auto_approve_threshold: float | None = Field(default=None, ge=0.5, le=1.0)
+    auto_send_internal_followups: bool | None = None

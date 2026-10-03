@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.dependencies import DbSession, FounderUser
+from app.dependencies import DbSession, OwnerUser
 from app.services.chase_service import run_chase_cycle
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.post("/run-chase")
 def run_chase_now(
-    current_founder: FounderUser,
+    current_owner: OwnerUser,
     db: DbSession,
 ) -> dict[str, int | str]:
     """Run one chase cycle for this tenant immediately.
@@ -19,7 +19,7 @@ def run_chase_now(
     call repeatedly: a task chased within the cadence will not be chased again, so
     this cannot double-remind anyone.
     """
-    result = run_chase_cycle(db, current_founder.company)
+    result = run_chase_cycle(db, current_owner.company)
     db.commit()
     return {
         "status": "completed",

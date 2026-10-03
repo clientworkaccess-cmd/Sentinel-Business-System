@@ -6,7 +6,16 @@ Secrets never appear in code. See docs/rules/security.md.
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: The placeholder shipped in .env.example. A token signed with it can be forged by
+#: anyone who has read the repo, which means reading any tenant.
+PLACEHOLDER_JWT_SECRET = "change-me-generate-a-real-random-value"
+MIN_JWT_SECRET_LENGTH = 32
+#: Environments where a placeholder secret is tolerated. Anything else — including a
+#: typo or an unset value on a server — must have a real key.
+DEV_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
 
 # The .env lives at the repo root, one level above backend/.
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -25,13 +34,17 @@ class Settings(BaseSettings):
     database_connection_string: str
 
     # Auth — the JWT secret is the tenancy boundary, since company_id is a signed claim.
-    jwt_secret_key: str = "change-me-generate-a-real-random-value"
+    jwt_secret_key: str = PLACEHOLDER_JWT_SECRET
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 480
 
     # App
     environment: str = "development"
     cors_origins: str = "http://localhost:3000"
+    #: Whether this process runs the background scheduler (chasing, connector sync).
+    #: With several API processes, turn it on in exactly one — or run a dedicated
+    #: worker — so the daily chase is not sent once per process.
+    run_scheduler: bool = True
 
     # Agent & LLM (Qwen API via OpenAI-compatible endpoint).
     # No default: a key belongs in .env, never in the repo. See docs/rules/security.md.
@@ -44,6 +57,40 @@ class Settings(BaseSettings):
     # startup — the system runs without them, just with thinner chat answers.
     hydra_db_api_key: str = ""
     hydra_timeout_seconds: float = 30.0
+
+    # Connectors (#11). Composio brokers OAuth and holds every provider token; we
+    # keep only its account ids. Empty disables connecting, and nothing else.
+    composio_api_key: str = ""
+    #: Optional pinned auth configs ("ac_..."), one per Composio toolkit. Unset ones
+    #: are found or created as Composio-managed on first use.
+    composio_auth_config_gmail: str = ""
+    composio_auth_config_googlecalendar: str = ""
+    composio_auth_config_googledrive: str = ""
+    composio_auth_config_slack: str = ""
+    #: Where this API is reachable from a browser. The OAuth callback lands here.
+    public_api_url: str = "http://localhost:8000"
+    #: Where the frontend lives. The callback sends the browser back to it.
+    frontend_url: str = "http://localhost:3000"
+    #: How often the scheduler re-syncs every active connection.
+    connector_sync_interval_minutes: int = 30
+    #: How far back the first sync of a mailbox, calendar or channel reaches.
+    connector_backfill_days: int = 90
+
+    @model_validator(mode="after")
+    def refuse_weak_jwt_secret_outside_dev(self) -> "Settings":
+        """Fail at startup, not at the first forged token. Fails closed: only an
+        explicitly local environment may run on the placeholder."""
+        weak = (
+            self.jwt_secret_key == PLACEHOLDER_JWT_SECRET
+            or len(self.jwt_secret_key) < MIN_JWT_SECRET_LENGTH
+        )
+        if weak and self.environment.strip().lower() not in DEV_ENVIRONMENTS:
+            raise ValueError(
+                "JWT_SECRET_KEY is the placeholder or shorter than "
+                f"{MIN_JWT_SECRET_LENGTH} characters. Generate one with: "
+                "python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+            )
+        return self
 
     @property
     def sqlalchemy_url(self) -> str:
@@ -73,6 +120,10 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> list[str]:
         """CORS_ORIGINS is comma-separated in the environment."""
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def connectors_enabled(self) -> bool:
+        return bool(self.composio_api_key.strip())
 
     @property
     def is_production(self) -> bool:
