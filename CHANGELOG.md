@@ -22,14 +22,14 @@
 - Graph API (#20): `GET /api/v1/graph?level=&id=` serves `{departments, teams, people, items}` in the `frontend/src/demo/types.ts` shape from real data, narrowed by role. Tasks and meetings are projected live, and projects/clients/decisions live in `brain_items`. A scope the caller can't view is a 404.
 - Hybrid retrieval (`GET /graph/search`, chat `search_business` for every role): HydraDB recall plus keyword seeds, one hop through `relatedIds`, then visibility. Facts that can't be traced to a visible node are dropped, and it degrades to graph-only when HydraDB is off.
 
-## [0.21.0] - 2026-10-02
+## [0.21.3] - 2026-10-02
 
 ### Added
 - External message approval gate (#19): every message Sentinel would send is an `outbound_messages` row born `pending_approval`. External ones leave only after a person approves (`/api/v1/approvals/messages`), and the database refuses an approved external row with no human decider. Internal follow-ups auto-send only if `auto_send_internal_followups` is on.
 - Connectors must not call a provider's send API directly: implement `ChannelSender` and `register_sender()` in `app/services/outbound_gate.py`. The gate hands senders a `SendPermit` that nothing else can mint.
 - The Owner, or the Admin of the team a message belongs to (its task owner, internal recipient or drafter), may approve. The gate takes the caller's `Viewer`, so another team's message is a 404.
 
-## [0.20.0] - 2026-10-02
+## [0.21.2] - 2026-10-02
 
 ### Added
 - Owner / Admin / Member roles (#18): founders became owners and employees became members in place; Admins see the departments/teams in `admin_assignments`, managed through the new `/org` routes. Every read goes through `Viewer` (`app/core/visibility.py`) and the scoped repositories — never filter by role in a route, and a model with no `_visible_clause` returns nothing to non-Owners.
@@ -38,6 +38,21 @@
 ### Fixed
 - Security review: failed logins no longer log the email, and unknown emails cost the same bcrypt time as wrong passwords. Startup refuses the placeholder `JWT_SECRET_KEY` unless `ENVIRONMENT` is explicitly dev/local/test. A password change, deactivation or role change bumps `users.token_version`, ending old sessions.
 - Meeting visibility now follows `tasks.meeting_id`, set by the extractor, instead of the title in `source_ref`. Two meetings with the same title had let one team read the other's transcript. Older tasks were backfilled only where the title was unique.
+
+## [0.21.0] - 2026-10-02
+
+### Added
+- `/brain/connectors` (#10): 54 apps across 10 categories with search, category chips (deep-linkable via `?category=`), and a Connect flow: permissions → OAuth window / API key / WhatsApp QR → sync progress → connected, plus Manage (sync now, disconnect). Simulated end to end; #11 replaces it with real OAuth against the same `src/demo/connectors.ts` shape.
+- 38 brand logos bundled in `public/connectors/` (generated once from simple-icons, CC0) so nothing loads from a CDN on stage; Slack, Microsoft and others simple-icons doesn't carry use brand-colour monograms. The 19 apps the demo data cites as sources start connected, so the gallery and the overview agree.
+
+## [0.20.0] - 2026-10-02
+
+### Added
+- `/brain/meetings` (#9): seven meetings across Zoom, Meet, Fireflies, Otter and Fathom, each with decisions, action items and transcript excerpts. Client-facing items carry a Sentinel-drafted message that waits for Approve / Edit / Reject: only the Owner, or the Admin of the meeting's team, may approve.
+- Voice notes: record → transcribe → action items extracted (`demo/extract.ts`, a demo heuristic; production uses the backend Extractor). With no microphone, "Use a sample note" shows the same flow.
+
+### Changed
+- Admins now see work their people are part of in other teams (e.g. a client call their engineers attended), in `visibleItems` and the team scope alike. Members are unchanged.
 
 ## [0.19.0] - 2026-10-02
 

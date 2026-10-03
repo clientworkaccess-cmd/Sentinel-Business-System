@@ -3,7 +3,7 @@
  * chat route (#16), so the graph and the chat can never disagree about it.
  *
  *   Owner  — everything
- *   Admin  — their department, plus anything they personally own
+ *   Admin  — their team, plus anything one of their people is part of
  *   Member — only items they own
  */
 import { getDepartment, getPerson, getTeam } from './org';
@@ -12,8 +12,12 @@ import type { BrainItem, Org, Person, Role, Scope, Viewer } from './types';
 export function visibleItems(org: Org, role: Role, viewerId: string): BrainItem[] {
   if (role === 'owner') return org.items;
   if (role === 'admin') {
+    // Their team's items, plus anything their people are part of elsewhere — an
+    // admin should see the client call their engineers sat in, wherever it's filed.
     const deptId = getPerson(viewerId)?.departmentId;
-    return org.items.filter((i) => i.departmentId === deptId || i.ownerIds.includes(viewerId));
+    return org.items.filter(
+      (i) => i.departmentId === deptId || i.ownerIds.some((o) => o === viewerId || getPerson(o)?.departmentId === deptId),
+    );
   }
   return org.items.filter((i) => i.ownerIds.includes(viewerId));
 }
@@ -110,7 +114,10 @@ export function itemsInScope(org: Org, viewer: Viewer, scope: Scope): BrainItem[
     case 'org':
       return visible;
     case 'department':
-      return visible.filter((i) => i.departmentId === scope.id);
+      // A team's view includes work its people are part of, wherever it's filed.
+      return visible.filter(
+        (i) => i.departmentId === scope.id || i.ownerIds.some((o) => getPerson(o)?.departmentId === scope.id),
+      );
     case 'team': {
       const members = new Set(getTeam(scope.id)?.memberIds ?? []);
       return visible.filter((i) => i.teamId === scope.id || i.ownerIds.some((o) => members.has(o)));

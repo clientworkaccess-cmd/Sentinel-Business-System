@@ -5,3 +5,5 @@ export { Avatar, AvatarStack, Card, ItemRow, SectionTitle, StatusPill, personCol
 export { KIND_META, STATUS_META, SOURCE_LABELS, formatDate, hueColor, sourceLabel } from './meta';
 export { GraphView } from './graph/GraphView';
 export { ChatView } from './chat/ChatView';
+export { MeetingsView } from './meetings/MeetingsView';
+export { ConnectorsView } from './connectors/ConnectorsView';
