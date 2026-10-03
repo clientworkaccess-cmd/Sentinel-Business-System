@@ -171,6 +171,8 @@ class FakeGateway:
         return {"items": cal["events"], "nextSyncToken": cal["token"], "summary": cal["email"]}
 
     def _drive(self, drive: dict[str, Any], p: dict[str, Any]) -> Any:
+        if "q" not in p:  # GET /about
+            return {"user": {"emailAddress": drive.get("user", "")}}
         since = p["q"].split("modifiedTime > '")[1].rstrip("'")
         files = sorted((f for f in drive["files"] if f["modifiedTime"] > since), key=lambda f: f["modifiedTime"])
         return {"files": files}
@@ -328,10 +330,10 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
 
         # --- 3. Gmail ---------------------------------------------------------------------
         print("\n3. Gmail: backfill by thread, visibility, incremental history")
-        box = {"email": f"alyan@{domain}", "history_id": 100, "history": [], "threads": {
+        box = {"email": "alyan.home@gmail.com", "history_id": 100, "history": [], "threads": {
             "t1": [gmail_message("m1", "t1", f"Saim <saim@{domain}>", f"alyan@{domain}", "Release train",
                                  "Can we ship Friday?", 3),
-                   gmail_message("m2", "t1", f"Alyan <alyan@{domain}>", f"saim@{domain}", "Re: Release train",
+                   gmail_message("m2", "t1", "Alyan <alyan.home@gmail.com>", f"saim@{domain}", "Re: Release train",
                                  "Yes, after QA.\n\nOn Mon, Saim wrote:\n> Can we ship Friday?", 2)],
             "t2": [gmail_message("m3", "t2", "Dana <dana@kestrel.com>", f"alyan@{domain}", "Kestrel v2 launch",
                                  "<p>The launch is slipping to <b>Oct 20</b>.</p><style>p{}</style>", 1, html=True)],
@@ -355,7 +357,9 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         check("quoted reply history is stripped", release.summary.count("Can we ship Friday?") == 1, release.summary)
         check("HTML mail is reduced to text", "slipping to Oct 20" in kestrel.summary and "<" not in kestrel.summary
               and "p{}" not in kestrel.summary, kestrel.summary)
-        check("mail with someone outside the company is external", kestrel.external and not release.external)
+        check("mail with someone outside the company is external", kestrel.external)
+        check("…but the mailbox's own address never is, even on gmail.com", not release.external,
+              release.external)
         check("owners: the mailbox's person plus colleagues on the thread",
               set(release.owner_ids) == {alyan.id, saim.id} and set(kestrel.owner_ids) == {alyan.id})
         conn = db.execute(select(Connection).where(Connection.composio_account_id == aid)).scalar_one()
@@ -527,7 +531,13 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         fake.fail[conn.composio_account_id] = ProviderAuthError("Reconnect it.")
         sync_connection(conn.id)
         db.refresh(conn)
-        check("grant revoked: marked expired", conn.status is ConnectionStatus.EXPIRED, conn.status)
+        check("a refused call while Composio still says ACTIVE is retried, not expired",
+              conn.status is ConnectionStatus.ACTIVE and "retry" in (conn.last_sync_error or ""),
+              (conn.status, conn.last_sync_error))
+        fake.accounts[conn.composio_account_id]["status"] = "EXPIRED"
+        sync_connection(conn.id)
+        db.refresh(conn)
+        check("grant revoked at Composio: marked expired", conn.status is ConnectionStatus.EXPIRED, conn.status)
         check("the gallery asks for a reconnect", mine(ah, "gmail")["status"] == "needs_reconnect")
         check("sync now is refused until then", client.post(f"{C}/gmail/sync", headers=ah).status_code == 409)
         check("expired connections are never scheduled", conn.id not in due_connections())
@@ -590,9 +600,11 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
 
         gw.time.sleep = lambda *_: None  # no real backoff in a test
         check("200 returns the body", gateway_with(Resp(200, {"ok": 1})).get("ca", "u") == {"ok": 1})
+        check("a single 401 is retried once (token refresh) and then succeeds",
+              gateway_with(Resp(401), Resp(200, {"ok": 3})).get("ca", "u") == {"ok": 3})
         for status_code, expected in ((401, ProviderAuthError), (410, ProviderNotFound)):
             try:
-                gateway_with(Resp(status_code)).get("ca", "u")
+                gateway_with(Resp(status_code), Resp(status_code)).get("ca", "u")
                 check(f"{status_code} raises {expected.__name__}", False)
             except expected:
                 check(f"{status_code} raises {expected.__name__}", True)

@@ -20,7 +20,7 @@ from email.utils import getaddresses, parsedate_to_datetime
 from typing import Any
 
 from app.connectors.base import Connector, SourceDocument, SyncBatch, SyncContext, clip
-from app.connectors.gateway import ProviderNotFound
+from app.connectors.gateway import ProviderAuthError, ProviderNotFound
 from app.models.enums import BrainItemKind
 
 GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -70,6 +70,7 @@ class GmailConnector(Connector):
             profile = ctx.gateway.get(ctx.account_id, f"{GMAIL}/profile")
             cursor = {"phase": "backfill", "history_id": str(profile["historyId"]),
                       "email": profile.get("emailAddress")}
+        ctx.people.add_self(cursor.get("email"))
         after = int(ctx.backfill_since.timestamp())
         page = ctx.gateway.get(ctx.account_id, f"{GMAIL}/threads", {
             "q": f"after:{after} -in:spam -in:trash -in:chats",
@@ -88,6 +89,7 @@ class GmailConnector(Connector):
                          account_label=cursor.get("email"))
 
     def _incremental(self, ctx: SyncContext, cursor: dict[str, Any]) -> SyncBatch:
+        ctx.people.add_self(cursor.get("email"))
         page = ctx.gateway.get(ctx.account_id, f"{GMAIL}/history", {
             "startHistoryId": cursor["history_id"],
             "historyTypes": "messageAdded",
@@ -239,6 +241,7 @@ class GoogleCalendarConnector(Connector):
             # 410 Gone: the sync token expired. Google's instruction is a full resync.
             return SyncBatch(documents=[], cursor={}, has_more=True)
 
+        ctx.people.add_self(page.get("summary"))  # the primary calendar is named after its owner
         incremental = bool(cursor.get("sync_token"))
         documents: list[SourceDocument] = []
         deleted: list[str] = []
@@ -321,6 +324,10 @@ class GoogleDriveConnector(Connector):
 
     def sync(self, ctx: SyncContext) -> SyncBatch:
         cursor = dict(ctx.cursor)
+        if "drive_user" not in ctx.scratch:
+            about = ctx.gateway.get(ctx.account_id, f"{DRIVE}/about", {"fields": "user(emailAddress)"}) or {}
+            ctx.scratch["drive_user"] = (about.get("user") or {}).get("emailAddress")
+            ctx.people.add_self(ctx.scratch["drive_user"])
         # Watermark: modifiedTime of the newest file already written. Strictly
         # greater-than, so the boundary file is not re-read every run.
         since = cursor.get("modified_after") or ctx.backfill_since.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S")
@@ -357,7 +364,10 @@ class GoogleDriveConnector(Connector):
             try:
                 text = ctx.gateway.get_text(ctx.account_id, f"{DRIVE}/files/{item['id']}/export",
                                             {"mimeType": export_as})
-            except ProviderNotFound:
+            except (ProviderNotFound, ProviderAuthError):
+                # This one file can't be exported (owner disabled it, too large,
+                # gone). Index it by metadata; a real revocation still surfaces on
+                # the next list call.
                 text = ""
         owners = [o["emailAddress"].lower() for o in item.get("owners", []) if o.get("emailAddress")]
         editor = (item.get("lastModifyingUser") or {}).get("emailAddress")
