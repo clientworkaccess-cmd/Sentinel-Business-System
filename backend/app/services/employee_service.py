@@ -12,10 +12,12 @@ from collections.abc import Sequence
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
+from app.core.visibility import Visibility
 from app.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.employee import Employee
 from app.models.enums import TaskStatus, UserRole
 from app.models.user import User
+from app.repositories.org import AdminAssignmentRepository, DepartmentRepository
 from app.repositories.task import TERMINAL_STATUSES, TaskRepository
 from app.repositories.user import UserRepository, find_user_for_login
 from app.schemas.employee import (
@@ -32,9 +34,11 @@ OPEN_STATUSES = tuple(s for s in TaskStatus if s not in TERMINAL_STATUSES)
 
 
 class EmployeeService(TenantService):
-    def __init__(self, db: Session, company_id: uuid.UUID) -> None:
-        super().__init__(db, company_id)
-        self.tasks = TaskRepository(db, company_id)
+    def __init__(
+        self, db: Session, company_id: uuid.UUID, visibility: Visibility | None = None
+    ) -> None:
+        super().__init__(db, company_id, visibility)
+        self.tasks = TaskRepository(db, company_id, visibility)
         self.users = UserRepository(db, company_id)
 
     def get_or_404(self, employee_id: uuid.UUID) -> Employee:
@@ -80,14 +84,23 @@ class EmployeeService(TenantService):
 
     # --- commands ---------------------------------------------------------------
 
+    def _check_department(self, department_id: uuid.UUID | None) -> None:
+        """A home department must be one of this company's."""
+        if department_id is None:
+            return
+        if DepartmentRepository(self.db, self.company_id).get(department_id) is None:
+            raise ValidationError("That department does not exist in this company.")
+
     def create(self, payload: EmployeeCreate) -> Employee:
         self._check_manager(None, payload.manager_id)
+        self._check_department(payload.department_id)
         return self.employees.create(
             name=payload.name,
             role_title=payload.role_title,
             email=payload.email,
             slack_user_id=payload.slack_user_id,
             manager_id=payload.manager_id,
+            department_id=payload.department_id,
         )
 
     def update(self, employee_id: uuid.UUID, payload: EmployeeUpdate) -> Employee:
@@ -96,6 +109,8 @@ class EmployeeService(TenantService):
 
         if "manager_id" in values:
             self._check_manager(employee_id, values["manager_id"])
+        if "department_id" in values:
+            self._check_department(values["department_id"])
 
         for key, value in values.items():
             setattr(employee, key, value)
@@ -114,7 +129,7 @@ class EmployeeService(TenantService):
             email=payload.email,
             password_hash=hash_password(payload.password),
             full_name=payload.full_name or employee.name,
-            role=UserRole.EMPLOYEE,
+            role=payload.role,
             employee_id=employee.id,
         )
         return user
@@ -126,12 +141,26 @@ class EmployeeService(TenantService):
             raise NotFoundError("Login account not found for this employee.")
 
         values = payload.model_dump(exclude_unset=True)
+        #: A new password, a deactivation or a role change each end existing sessions.
+        revoke = False
         if "password" in values and values["password"]:
             user.password_hash = hash_password(values["password"])
+            revoke = True
         if "full_name" in values:
             user.full_name = values["full_name"]
         if "is_active" in values and values["is_active"] is not None:
+            revoke = revoke or (user.is_active and not values["is_active"])
             user.is_active = values["is_active"]
+        if values.get("role") is not None and values["role"] is not user.role:
+            if user.role is UserRole.OWNER:
+                raise ConflictError("The owner's role cannot be changed here.")
+            if user.role is UserRole.ADMIN:
+                # A demoted Admin keeps nothing they managed. Re-promoting starts clean.
+                AdminAssignmentRepository(self.db, self.company_id).clear_for_user(user.id)
+            user.role = values["role"]
+            revoke = True
+        if revoke:
+            user.token_version = (user.token_version or 0) + 1
 
         self.db.flush()
         return user
@@ -167,8 +196,8 @@ class EmployeeService(TenantService):
             )
 
         if employee.user is not None:
-            if employee.user.role == UserRole.FOUNDER:
-                raise ConflictError("Cannot delete an employee linked to a founder user account.")
+            if employee.user.role is UserRole.OWNER:
+                raise ConflictError("Cannot delete an employee linked to the owner's account.")
             self.users.delete(employee.user.id)
 
         self.employees.delete(employee_id)

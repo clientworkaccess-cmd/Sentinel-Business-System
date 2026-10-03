@@ -1,13 +1,14 @@
 """User — login identity only.
 
-A founder is a User with role=founder and usually no Employee row.
-An employee is an Employee row that may later gain a User.
+An Owner (formerly "founder") is a User with role=owner and usually no Employee row.
+Admins and Members are Employee rows that have gained a User. An Admin's reach is
+the departments and teams in ``admin_assignments``, not anything on this row.
 """
 
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -35,9 +36,13 @@ class User(UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, Base):
     role: Mapped[UserRole] = mapped_column(
         pg_enum(UserRole, "user_role"),
         nullable=False,
-        server_default=UserRole.EMPLOYEE.value,
+        server_default=UserRole.MEMBER.value,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    #: Carried in every token as ``ver``. Bumping it — password change, deactivation,
+    #: role change — ends every session issued before, instead of letting them run
+    #: to expiry.
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     #: The only FK between users and employees. Null for founders.
     employee_id: Mapped[uuid.UUID | None] = mapped_column(

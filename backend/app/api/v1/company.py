@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.dependencies import CompanyId, CompanyRepo, DbSession, FounderUser
+from app.dependencies import CompanyId, CompanyRepo, DbSession, OwnerUser
 from app.exceptions import NotFoundError
 from app.models.company import Company
 from app.models.task import Task
@@ -21,6 +21,7 @@ def _read(company: Company) -> CompanyRead:
         escalation_after_days=company.escalation_after_days,
         max_chases=company.max_chases,
         auto_approve_threshold=company.auto_approve_threshold,
+        auto_send_internal_followups=company.auto_send_internal_followups,
         slack_connected=bool(company.slack_bot_token),
         slack_team_id=company.slack_team_id,
         knowledge_connected=bool(company.hydra_tenant_id),
@@ -28,7 +29,7 @@ def _read(company: Company) -> CompanyRead:
 
 
 @router.get("", response_model=CompanyRead)
-def get_company(repo: CompanyRepo, company_id: CompanyId, _: FounderUser) -> CompanyRead:
+def get_company(repo: CompanyRepo, company_id: CompanyId, _: OwnerUser) -> CompanyRead:
     company = repo.get(company_id)
     if company is None:
         raise NotFoundError("Company not found.")
@@ -40,7 +41,7 @@ def update_company(
     payload: CompanyUpdate,
     repo: CompanyRepo,
     company_id: CompanyId,
-    _: FounderUser,
+    _: OwnerUser,
     db: DbSession,
 ) -> CompanyRead:
     """Rename the company, configure the assistant, set the escalation window."""
@@ -55,6 +56,9 @@ def update_company(
         company.persona_config = values.pop("persona_config")
     else:
         values.pop("persona_config", None)
+
+    if values.get("auto_send_internal_followups", False) is None:
+        values.pop("auto_send_internal_followups")  # explicit null means "unchanged"
 
     for key, value in values.items():
         setattr(company, key, value)

@@ -1,5 +1,6 @@
 """Transcript and meeting notes extraction agent runner."""
 
+import uuid
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -21,6 +22,7 @@ def run_transcript_extraction(
     source_ref: str | None = None,
     meeting_title: str | None = None,
     occurred_on: date | None = None,
+    meeting_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """Process a raw transcript or meeting recording, extracting structured action items.
 
@@ -37,6 +39,7 @@ def run_transcript_extraction(
         source_ref=source_ref,
         meeting_title=meeting_title,
         occurred_on=occurred_on,
+        meeting_id=meeting_id,
     )
 
     # Bound the result query to this run. Filtering on created_by_agent alone returns
@@ -54,13 +57,19 @@ def run_transcript_extraction(
 
     response = agent.invoke({"messages": [HumanMessage(content=prompt)]})
 
-    # Fetch tasks created during this run
+    # Fetch tasks created during this run. With a meeting id the filter is exact;
+    # without one, a concurrent extraction could share the time window.
+    run_filter = (
+        Task.meeting_id == meeting_id
+        if meeting_id is not None
+        else Task.created_at >= started_at
+    )
     recent_tasks = db.execute(
         select(Task)
         .where(
             Task.company_id == company.id,
             Task.created_by_agent == "extractor",
-            Task.created_at >= started_at,
+            run_filter,
         )
         .order_by(Task.created_at.desc())
     ).scalars().all()

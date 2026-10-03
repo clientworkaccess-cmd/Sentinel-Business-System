@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.24.0] - 2026-10-03
+
+### Added
+- Production setup: `backend/Dockerfile` (non-root, `RUN_MIGRATIONS`, `WEB_CONCURRENCY`), a `/ready` probe that is 503 until the DB answers and its schema is at head, and CI (`.github/workflows/`) running migrations, drift and every verify suite on a throwaway Postgres, plus the frontend build in both login modes. See `docs/features/production-hardening/deploy.md`.
+- Watch out: `RUN_SCHEDULER` must be `true` in exactly one process, or the daily chase goes out once per worker.
+
+### Fixed
+- With no `QWEN_API_KEY`, chat and meetings now return a clean 503 before writing anything, instead of a 500 after leaving a failed meeting row. `verify.py` now skips model-only checks without a key (109 pass, 0 fail), and its two expectations made stale by #29/#20 are updated.
+- Security headers on every response; a caller's `X-Request-ID` can no longer inject log lines; the missing `reports.report_date` index is created, so models and migrations match exactly.
+
+## [0.23.0] - 2026-10-02
+
+### Added
+- Real connectors (#11–#13) via Composio-managed OAuth: Gmail, Google Calendar, Google Drive (Docs exported as text) and Slack public channels sync into `brain_items` and HydraDB, owned by the connecting person and participants, so Owner/Admin/Member visibility applies unchanged. Routes: `GET/POST/DELETE /api/v1/connectors…`; see `docs/features/connectors/architecture.md`.
+- Sentinel never stores a provider token (Composio holds them; `connections` keeps only its account id). Set `COMPOSIO_API_KEY`, `PUBLIC_API_URL` and `FRONTEND_URL` in `backend/.env`; without the key the gallery reports connectors unavailable and nothing else changes.
+
+## [0.22.0] - 2026-10-02
+
+### Added
+- Graph API (#20): `GET /api/v1/graph?level=&id=` serves `{departments, teams, people, items}` in the `frontend/src/demo/types.ts` shape from real data, narrowed by role. Tasks and meetings are projected live, and projects/clients/decisions live in `brain_items`. A scope the caller can't view is a 404.
+- Hybrid retrieval (`GET /graph/search`, chat `search_business` for every role): HydraDB recall plus keyword seeds, one hop through `relatedIds`, then visibility. Facts that can't be traced to a visible node are dropped, and it degrades to graph-only when HydraDB is off.
+
+## [0.21.3] - 2026-10-02
+
+### Added
+- External message approval gate (#19): every message Sentinel would send is an `outbound_messages` row born `pending_approval`. External ones leave only after a person approves (`/api/v1/approvals/messages`), and the database refuses an approved external row with no human decider. Internal follow-ups auto-send only if `auto_send_internal_followups` is on.
+- Connectors must not call a provider's send API directly: implement `ChannelSender` and `register_sender()` in `app/services/outbound_gate.py`. The gate hands senders a `SendPermit` that nothing else can mint.
+- The Owner, or the Admin of the team a message belongs to (its task owner, internal recipient or drafter), may approve. The gate takes the caller's `Viewer`, so another team's message is a 404.
+
+## [0.21.2] - 2026-10-02
+
+### Added
+- Owner / Admin / Member roles (#18): founders became owners and employees became members in place; Admins see the departments/teams in `admin_assignments`, managed through the new `/org` routes. Every read goes through `Viewer` (`app/core/visibility.py`) and the scoped repositories — never filter by role in a route, and a model with no `_visible_clause` returns nothing to non-Owners.
+- Watch out: tokens and `/auth/me` now say `owner|admin|member`, and a token whose role no longer matches the user is rejected, so everyone signs in once after the migration. The legacy dashboard still checks `'founder'`/`'employee'` and needs updating.
+
+### Fixed
+- Security review: failed logins no longer log the email, and unknown emails cost the same bcrypt time as wrong passwords. Startup refuses the placeholder `JWT_SECRET_KEY` unless `ENVIRONMENT` is explicitly dev/local/test. A password change, deactivation or role change bumps `users.token_version`, ending old sessions.
+- Meeting visibility now follows `tasks.meeting_id`, set by the extractor, instead of the title in `source_ref`. Two meetings with the same title had let one team read the other's transcript. Older tasks were backfilled only where the title was unique.
+
 ## [0.21.0] - 2026-10-02
 
 ### Added

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Float, Integer, String, Text
+from sqlalchemy import Boolean, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,6 +46,12 @@ class Company(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     #: Default is 1.0 (nothing auto-approves until tuned down).
     auto_approve_threshold: Mapped[float] = mapped_column(
         Float, nullable=False, server_default="1.0"
+    )
+    #: Whether a follow-up from one teammate to another may go out without the
+    #: Owner approving it. Off by default. Has no effect on external messages, which
+    #: always wait for a human — see app/services/outbound_gate.py.
+    auto_send_internal_followups: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
     )
 
     #: Slack bot token from OAuth (step 2). Not a login credential — an authorisation

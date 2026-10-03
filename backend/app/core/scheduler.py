@@ -10,6 +10,8 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy import select
 
+from app.config import settings
+from app.connectors.runner import sync_due_connections
 from app.database import SessionLocal
 from app.models.company import Company
 from app.services.chase_service import run_chase_cycle
@@ -68,6 +70,19 @@ def start_scheduler() -> None:
             id="sentinel_daily_chase",
             replace_existing=True,
         )
+        if settings.connectors_enabled:
+            # Every few minutes, sync whichever connections are due. Due-ness and the
+            # per-connection lease live in the database (app/connectors/runner.py), so
+            # this stays correct with several workers each running the job.
+            scheduler.add_job(
+                sync_due_connections,
+                "interval",
+                minutes=5,
+                id="sentinel_connector_sync",
+                replace_existing=True,
+                max_instances=1,
+                coalesce=True,
+            )
         scheduler.start()
         logger.info("APScheduler started successfully.")
 

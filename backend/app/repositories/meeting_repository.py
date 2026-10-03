@@ -2,25 +2,53 @@
 
 import uuid
 from datetime import datetime
-from typing import Sequence
-from sqlalchemy import select
+from typing import TYPE_CHECKING, Sequence
+
+from sqlalchemy import ColumnElement, exists, false, or_
 from sqlalchemy.orm import Session
 
 from app.models.meeting import Meeting, MeetingStatus, TranscriptSegment
+from app.models.task import Task
 from app.repositories.base import TenantScopedRepository
+
+if TYPE_CHECKING:
+    from app.core.visibility import Visibility
 
 
 class MeetingRepository(TenantScopedRepository[Meeting]):
     model = Meeting
 
-    def __init__(self, db: Session, company_id: uuid.UUID):
-        super().__init__(db, company_id)
+    def __init__(
+        self, db: Session, company_id: uuid.UUID, visibility: "Visibility | None" = None
+    ):
+        super().__init__(db, company_id, visibility)
+
+    def _visible_clause(self, visibility: "Visibility") -> ColumnElement[bool]:
+        """A meeting someone in reach spoke in, or that produced a task they own.
+
+        Meetings have no attendee list, so these are the two links that exist. The
+        task link is ``tasks.meeting_id``, never the title in ``source_ref``: titles
+        repeat ("Weekly Standup"), and a title match would hand one team's
+        transcript to anyone owning a task from another team's meeting of that name.
+        """
+        if not visibility.employee_ids:
+            return false()
+        people = visibility.employee_ids
+        spoke = exists().where(
+            TranscriptSegment.meeting_id == Meeting.id,
+            TranscriptSegment.speaker_employee_id.in_(people),
+        )
+        owns_task = exists().where(
+            Task.company_id == Meeting.company_id,
+            Task.meeting_id == Meeting.id,
+            Task.owner_employee_id.in_(people),
+        )
+        return or_(spoke, owns_task)
 
     def list_recent(self, limit: int = 50) -> Sequence[Meeting]:
         """List meetings ordered by recorded_at descending."""
         stmt = (
-            select(Meeting)
-            .where(Meeting.company_id == self.company_id)
+            self._scoped()
             .order_by(Meeting.recorded_at.desc())
             .limit(limit)
         )

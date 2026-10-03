@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agentic_ai.agents.chat import run_chat_turn
+from app.agentic_ai.config import require_llm
 from app.agentic_ai.checkpointer import get_checkpointer
 from app.dependencies import CurrentUser, DbSession
 from app.exceptions import ForbiddenError, NotFoundError
@@ -29,7 +30,8 @@ def chat_endpoint(
     current_user: CurrentUser,
     db: DbSession,
 ) -> ChatResponse:
-    """Send a message to Sentinel and receive a reply."""
+    """Send a message to Sentinel and receive a reply. 503 when no model is configured."""
+    require_llm()
     result = run_chat_turn(
         db=db,
         company=current_user.company,
