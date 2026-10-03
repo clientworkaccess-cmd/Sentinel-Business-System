@@ -94,6 +94,9 @@ def sync_connection(connection_id: uuid.UUID) -> SyncOutcome:
         user = db.get(User, connection.user_id)
         employee_id = user.employee_id if user else None
         people = ingest.build_directory(db, company.id)
+        # The person's own addresses are never "external" on their own data.
+        people.add_self(user.email if user else None)
+        people.add_self(connection.account_label)
         backfill = now - timedelta(days=settings.connector_backfill_days)
         ctx = SyncContext(gateway=gateway, account_id=connection.composio_account_id,
                           cursor=dict(connection.sync_cursor or {}), people=people,

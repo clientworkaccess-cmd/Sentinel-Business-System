@@ -171,6 +171,8 @@ class FakeGateway:
         return {"items": cal["events"], "nextSyncToken": cal["token"], "summary": cal["email"]}
 
     def _drive(self, drive: dict[str, Any], p: dict[str, Any]) -> Any:
+        if "q" not in p:  # GET /about
+            return {"user": {"emailAddress": drive.get("user", "")}}
         since = p["q"].split("modifiedTime > '")[1].rstrip("'")
         files = sorted((f for f in drive["files"] if f["modifiedTime"] > since), key=lambda f: f["modifiedTime"])
         return {"files": files}
@@ -328,10 +330,10 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
 
         # --- 3. Gmail ---------------------------------------------------------------------
         print("\n3. Gmail: backfill by thread, visibility, incremental history")
-        box = {"email": f"alyan@{domain}", "history_id": 100, "history": [], "threads": {
+        box = {"email": "alyan.home@gmail.com", "history_id": 100, "history": [], "threads": {
             "t1": [gmail_message("m1", "t1", f"Saim <saim@{domain}>", f"alyan@{domain}", "Release train",
                                  "Can we ship Friday?", 3),
-                   gmail_message("m2", "t1", f"Alyan <alyan@{domain}>", f"saim@{domain}", "Re: Release train",
+                   gmail_message("m2", "t1", "Alyan <alyan.home@gmail.com>", f"saim@{domain}", "Re: Release train",
                                  "Yes, after QA.\n\nOn Mon, Saim wrote:\n> Can we ship Friday?", 2)],
             "t2": [gmail_message("m3", "t2", "Dana <dana@kestrel.com>", f"alyan@{domain}", "Kestrel v2 launch",
                                  "<p>The launch is slipping to <b>Oct 20</b>.</p><style>p{}</style>", 1, html=True)],
@@ -355,7 +357,9 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         check("quoted reply history is stripped", release.summary.count("Can we ship Friday?") == 1, release.summary)
         check("HTML mail is reduced to text", "slipping to Oct 20" in kestrel.summary and "<" not in kestrel.summary
               and "p{}" not in kestrel.summary, kestrel.summary)
-        check("mail with someone outside the company is external", kestrel.external and not release.external)
+        check("mail with someone outside the company is external", kestrel.external)
+        check("…but the mailbox's own address never is, even on gmail.com", not release.external,
+              release.external)
         check("owners: the mailbox's person plus colleagues on the thread",
               set(release.owner_ids) == {alyan.id, saim.id} and set(kestrel.owner_ids) == {alyan.id})
         conn = db.execute(select(Connection).where(Connection.composio_account_id == aid)).scalar_one()
