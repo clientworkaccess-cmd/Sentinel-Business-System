@@ -13,7 +13,9 @@ export interface ActionItem {
   text: string;
   ownerId: string;
   due?: string;
-  status: 'open' | 'done' | 'pending_approval';
+  status: 'open' | 'done' | 'pending_approval' | 'rejected';
+  /** Live meetings: the owner as the backend names them (not a demo person). */
+  ownerName?: string;
   /** Outside party it goes to. Set ⇒ needs human approval before sending. */
   externalTo?: string;
   /** The drafted message, shown for approval. */
@@ -69,7 +71,7 @@ No features have been removed. We'll send a short status note every Wednesday un
 
 Best regards,
 Asad Mahmood
-Arcline Technologies`,
+Barq Digital`,
       },
       { id: 'a-kes-2', text: 'Finish payment SDK certification', ownerId: ALYAN, due: '2026-10-08', status: 'open', itemId: 'task-kestrel-sdk' },
       { id: 'a-kes-3', text: "Escalate the PSP ticket with their account manager", ownerId: 'zain-abbas', due: '2026-10-05', status: 'open' },
@@ -110,7 +112,7 @@ The full SLA document follows by Oct 6. Happy to walk your team through it.
 
 Regards,
 Omar Farooq
-Head of Growth, Arcline Technologies`,
+Head of Growth, Barq Digital`,
       },
       { id: 'a-ind-2', text: 'Draft the 4-hour support SLA', ownerId: 'junaid-akram', due: '2026-10-06', status: 'open', itemId: 'task-indus-sla' },
       { id: 'a-ind-3', text: 'Chase overdue invoice INV-2291 (PKR 4.2M)', ownerId: 'yasir-hameed', due: '2026-10-04', status: 'open', itemId: 'task-indus-invoice' },
@@ -172,7 +174,7 @@ Let me know if Nov 1 suits better for kickoff and we'll adjust.
 
 Best,
 Adeel Chaudhry
-Arcline Technologies`,
+Barq Digital`,
       },
     ],
     transcript: [
@@ -231,7 +233,7 @@ Attached is our phase 2 proposal for the driver app: live job offers, navigation
 
 Best regards,
 Sara Imtiaz
-Arcline Technologies`,
+Barq Digital`,
       },
     ],
     transcript: [

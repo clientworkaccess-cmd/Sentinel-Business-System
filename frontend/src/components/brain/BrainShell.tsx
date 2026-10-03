@@ -4,7 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  ArrowUpRight, ChevronRight, LayoutDashboard, LogOut, Menu, MessageSquareText, Mic, Moon, Network, Plug, Sparkles, Sun, X,
+  ArrowUpRight, ChevronRight, ClipboardCheck, LayoutDashboard, LogOut, Menu, MessageSquareText, Mic, Moon, Network, Plug,
+  Settings, Sparkles, Sun, X,
 } from 'lucide-react';
 import { BrandLockup } from '@/components/ui';
 import { ORG, getPerson } from '@/demo/org';
@@ -14,15 +15,28 @@ import { useBrainStore } from '@/stores/useBrainStore';
 import { useSessionStore } from '@/stores/useSessionStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { cn } from '@/lib/utils';
+import { AUTH_MODE } from '@/lib/authMode';
+import { isMemberRole, isOwnerRole } from '@/types';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { Avatar } from './atoms';
 
-const NAV = [
+const NAV: { name: string; href: string; icon: React.ElementType; live?: 'reviewer' | 'owner' }[] = [
   { name: 'Overview', href: '/brain', icon: LayoutDashboard },
   { name: 'Knowledge graph', href: '/brain/graph', icon: Network },
   { name: 'Ask Sentinel', href: '/brain/chat', icon: MessageSquareText },
   { name: 'Meetings & notes', href: '/brain/meetings', icon: Mic },
   { name: 'Connectors', href: '/brain/connectors', icon: Plug },
+  // Backed by the real API, so only with the backend login.
+  { name: 'Approvals', href: '/brain/approvals', icon: ClipboardCheck, live: 'reviewer' },
+  { name: 'Settings', href: '/brain/settings', icon: Settings, live: 'owner' },
 ];
+
+/** Approvals: Owners and Admins. Settings: Owners. Both need the backend login. */
+function navAllowed(live: 'reviewer' | 'owner' | undefined, role: string | undefined): boolean {
+  if (!live) return true;
+  if (AUTH_MODE !== 'backend' || !role) return false;
+  return live === 'owner' ? isOwnerRole(role as never) : !isMemberRole(role as never);
+}
 
 const ROLES: { role: Role; label: string }[] = [
   { role: 'owner', label: 'Owner' },
@@ -101,6 +115,7 @@ function Sidebar({ open, onClose, pathname }: { open: boolean; onClose: () => vo
   const me = getPerson(viewer.personId);
   const router = useRouter();
   const signOut = useSessionStore((s) => s.signOut);
+  const backendRole = useAuthStore((s) => s.user?.role);
 
   return (
     <>
@@ -131,7 +146,7 @@ function Sidebar({ open, onClose, pathname }: { open: boolean; onClose: () => vo
         </div>
 
         <nav className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1">
-          {NAV.map(({ name, href, icon: Icon }) => {
+          {NAV.filter((n) => navAllowed(n.live, backendRole)).map(({ name, href, icon: Icon }) => {
             const active = href === '/brain' ? pathname === href : pathname.startsWith(href);
             return (
               <Link

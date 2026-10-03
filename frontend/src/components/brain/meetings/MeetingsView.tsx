@@ -4,19 +4,29 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  Check, CheckCircle2, Circle, Clock, Gavel, Loader2, Mic, Pencil, Plug, ShieldCheck, Sparkles, Square, X,
+  AlertTriangle, ArrowRight, Check, CheckCircle2, Circle, Clock, FileText, Gavel, Loader2, Mic, Pencil, Plug, ShieldCheck,
+  Sparkles, Trash2, X,
 } from 'lucide-react';
 import { ORG, firstName, getItem, getPerson } from '@/demo/org';
 import { MEETING_DETAILS, type ActionItem, type MeetingDetail, type TranscriptLine } from '@/demo/meetings';
-import { SAMPLE_VOICE_NOTE, extractActions } from '@/demo/extract';
+import { extractActions } from '@/demo/extract';
 import { itemsInScope } from '@/demo/visibility';
 import type { BrainItem, Viewer } from '@/demo/types';
 import { useBrainStore } from '@/stores/useBrainStore';
 import { useMeetingNotesStore, type Review, type VoiceNote } from '@/stores/useMeetingNotesStore';
 import { cn } from '@/lib/utils';
+import { AUTH_MODE } from '@/lib/authMode';
+import { apiErrorMessage } from '@/lib/api';
+import { deleteMeeting, type MeetingDetail as LiveMeetingDetail } from '@/lib/meetingsApi';
+import { isOwnerRole } from '@/types';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { Avatar, AvatarStack, Card, SectionTitle } from '../atoms';
 import { formatDate, sourceLabel } from '../meta';
-import { useRecorder } from '../chat/voice';
+import { CaptureCard } from './CaptureCard';
+import { toEntry, useLiveMeetings, type LiveEntry } from './useLiveMeetings';
+
+/** Backend auth mode: meetings come from, and are created through, the API. */
+const LIVE = AUTH_MODE === 'backend';
 
 /** One shape for both recorded meetings and voice notes, so the list and detail never branch on type. */
 interface Entry {
@@ -33,6 +43,10 @@ interface Entry {
   durationMin?: number;
   departmentId?: string;
   isNote: boolean;
+  /** Live meetings: the backend id, processing status and any failure. */
+  liveId?: string;
+  status?: LiveEntry['status'];
+  error?: string | null;
 }
 
 type Filter = 'all' | 'approval' | 'notes';
@@ -54,6 +68,14 @@ function fromNote(n: VoiceNote): Entry {
   };
 }
 
+function fromLive(e: LiveEntry): Entry {
+  return {
+    id: e.id, title: e.title, dateLabel: e.dateLabel, source: e.source, peopleIds: [], guests: [], decisions: [],
+    actions: e.actions, transcript: e.transcript, durationMin: e.durationMin, isNote: e.source === 'recording',
+    liveId: e.id.slice('live:'.length), status: e.status, error: e.error,
+  };
+}
+
 type ActionStatus = ActionItem['status'] | Review['status'];
 
 /** A human decision, if one was made, wins over the item's starting status. */
@@ -72,11 +94,15 @@ function canApprove(viewer: Viewer, entry: Entry): boolean {
 
 export function MeetingsView() {
   const { viewer, scope } = useBrainStore();
-  const { notes, reviews } = useMeetingNotesStore();
+  const { notes, reviews, addNote } = useMeetingNotesStore();
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const live = useLiveMeetings(LIVE);
+  const role = useAuthStore((s) => s.user?.role);
+  // Creating meetings is Owner-only on the backend.
+  const canCapture = !LIVE || isOwnerRole(role);
 
-  const entries = useMemo(() => {
+  const demoEntries = useMemo(() => {
     const meetings = itemsInScope(ORG, viewer, scope)
       .filter((i) => i.kind === 'meeting' && MEETING_DETAILS[i.id])
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
@@ -85,6 +111,37 @@ export function MeetingsView() {
     const mine = notes.filter((n) => n.ownerId === viewer.personId || viewer.role === 'owner').map(fromNote);
     return [...mine, ...meetings];
   }, [viewer, scope, notes]);
+  const entries = LIVE ? live.entries.map(fromLive) : demoEntries;
+
+  /** Demo: a recorded, uploaded or pasted text becomes a local voice note. */
+  const addDemoNote = (text: string, title?: string) => {
+    const now = new Date();
+    const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const id = `note-${now.getTime()}`;
+    addNote({
+      id,
+      ownerId: viewer.personId,
+      title: title?.trim() || `Voice note · ${hhmm}`,
+      when: `Today · ${hhmm}`,
+      summary: text.split(/(?<=[.!?])\s+/)[0],
+      transcript: [{ speaker: viewer.personId, at: '00:00', text }],
+      actions: extractActions(text, viewer.personId, id),
+    });
+    setFilter('all');
+    setSelectedId(id);
+  };
+
+  const addLiveMeeting = (m: LiveMeetingDetail) => {
+    const entry = toEntry(m);
+    live.setEntries((xs) => [entry, ...xs.filter((x) => x.id !== entry.id)]);
+    setFilter('all');
+    setSelectedId(entry.id);
+  };
+
+  const removeLiveMeeting = (id: string) => {
+    live.setEntries((xs) => xs.filter((x) => x.id !== id));
+    setSelectedId(null);
+  };
 
   const pending = (e: Entry) => e.actions.filter((a) => statusOf(a, reviews) === 'pending_approval').length;
   const shown = entries.filter((e) => (filter === 'approval' ? pending(e) > 0 : filter === 'notes' ? e.isNote : true));
@@ -114,7 +171,10 @@ export function MeetingsView() {
         </Link>
       </div>
 
-      <VoiceNoteRecorder viewer={viewer} onCreated={(id) => { setFilter('all'); setSelectedId(id); }} />
+      {canCapture && <CaptureCard live={LIVE} onDemoText={addDemoNote} onLiveCreated={addLiveMeeting} />}
+      {LIVE && live.error && (
+        <p className="text-xs text-rose-700 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {live.error}</p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] gap-6 items-start">
         <div className="min-w-0 space-y-3">
@@ -122,7 +182,7 @@ export function MeetingsView() {
             {([
               ['all', `All · ${entries.length}`],
               ['approval', `Needs approval · ${totalPending}`],
-              ['notes', `Voice notes · ${entries.filter((e) => e.isNote).length}`],
+              ['notes', `${LIVE ? 'Recordings' : 'Voice notes'} · ${entries.filter((e) => e.isNote).length}`],
             ] as [Filter, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -140,9 +200,17 @@ export function MeetingsView() {
           </div>
 
           <Card className="p-1.5">
-            {shown.length === 0 ? (
+            {LIVE && live.loading && entries.length === 0 ? (
+              <p className="text-sm text-warm-gray p-6 text-center inline-flex w-full items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading meetings…
+              </p>
+            ) : shown.length === 0 ? (
               <p className="text-sm text-warm-gray p-6 text-center">
-                {filter === 'notes' ? 'No voice notes yet. Record one above.' : 'Nothing is waiting for approval.'}
+                {filter === 'notes'
+                  ? `No ${LIVE ? 'recordings' : 'voice notes'} yet.`
+                  : filter === 'approval'
+                    ? 'Nothing is waiting for approval.'
+                    : 'No meetings yet.'}
               </p>
             ) : (
               shown.map((e) => {
@@ -163,6 +231,7 @@ export function MeetingsView() {
                       <span className="block text-xs text-warm-gray mt-0.5">
                         {e.dateLabel}
                         {e.durationMin ? ` · ${e.durationMin} min` : ''}
+                        {e.status && e.status !== 'completed' && ` · ${e.status === 'failed' ? 'Failed' : 'Processing'}`}
                       </span>
                       <span className="flex flex-wrap gap-1.5 mt-2">
                         {e.decisions.length > 0 && <Chip>{e.decisions.length} decisions</Chip>}
@@ -177,7 +246,9 @@ export function MeetingsView() {
           </Card>
         </div>
 
-        <div className="min-w-0">{selected ? <MeetingDetailCard entry={selected} viewer={viewer} /> : null}</div>
+        <div className="min-w-0">
+          {selected ? <MeetingDetailCard entry={selected} viewer={viewer} canDelete={LIVE && isOwnerRole(role)} onDeleted={removeLiveMeeting} /> : null}
+        </div>
       </div>
     </div>
   );
@@ -185,16 +256,43 @@ export function MeetingsView() {
 
 /* ── Detail ────────────────────────────────────────────────────────────── */
 
-function MeetingDetailCard({ entry, viewer }: { entry: Entry; viewer: Viewer }) {
+function MeetingDetailCard({
+  entry,
+  viewer,
+  canDelete,
+  onDeleted,
+}: {
+  entry: Entry;
+  viewer: Viewer;
+  canDelete: boolean;
+  onDeleted: (id: string) => void;
+}) {
   const router = useRouter();
   const approver = canApprove(viewer, entry);
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const remove = async () => {
+    if (!entry.liveId) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteMeeting(entry.liveId);
+      onDeleted(entry.id);
+    } catch (err) {
+      setDeleteError(apiErrorMessage(err, 'Could not delete this meeting.'));
+      setDeleting(false);
+      setConfirming(false);
+    }
+  };
 
   return (
     <Card className="p-5 sm:p-6 space-y-7">
       <header>
         <div className="flex items-center gap-2 text-xs text-warm-gray">
           <SourceTile source={entry.source} small />
-          {entry.isNote ? 'Voice note' : `Recorded by ${sourceLabel(entry.source)}`} · {entry.dateLabel}
+          {entry.liveId ? sourceLabel(entry.source) : entry.isNote ? 'Voice note' : `Recorded by ${sourceLabel(entry.source)}`} · {entry.dateLabel}
           {entry.durationMin ? ` · ${entry.durationMin} min` : ''}
         </div>
         <h2 className="font-display text-[26px] leading-tight text-ink-black mt-2">{entry.title}</h2>
@@ -213,7 +311,26 @@ function MeetingDetailCard({ entry, viewer }: { entry: Entry; viewer: Viewer }) 
           >
             <Sparkles className="w-3.5 h-3.5" /> Ask Sentinel about this
           </button>
+          {canDelete && (
+            <button
+              onClick={() => (confirming ? remove() : setConfirming(true))}
+              disabled={deleting}
+              className={cn(
+                'text-xs inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition disabled:opacity-50',
+                confirming ? 'bg-rose-50 border-rose-200 text-rose-700' : 'border-transparent text-warm-gray hover:text-rose-700',
+              )}
+            >
+              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              {confirming ? 'Click again to delete' : 'Delete'}
+            </button>
+          )}
         </div>
+        {deleteError && <p className="text-xs text-rose-700 mt-2">{deleteError}</p>}
+        {entry.status === 'failed' && (
+          <p className="text-xs text-rose-700 mt-3 flex items-start gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Processing failed{entry.error ? `: ${entry.error}` : '.'}
+          </p>
+        )}
       </header>
 
       {entry.decisions.length > 0 && (
@@ -235,14 +352,14 @@ function MeetingDetailCard({ entry, viewer }: { entry: Entry; viewer: Viewer }) 
           <p className="text-sm text-warm-gray">No commitments were heard in this one.</p>
         ) : (
           <div className="space-y-2">
-            {entry.actions.map((a) => <ActionRow key={a.id} action={a} canApprove={approver} />)}
+            {entry.actions.map((a) => <ActionRow key={a.id} action={a} canApprove={approver} live={Boolean(entry.liveId)} />)}
           </div>
         )}
       </section>
 
       {entry.transcript.length > 0 && (
         <section>
-          <SectionTitle title="Transcript" hint={entry.isNote ? undefined : 'Excerpt'} />
+          <SectionTitle title="Transcript" hint={entry.isNote || entry.liveId ? undefined : 'Excerpt'} />
           <div className="space-y-3">
             {entry.transcript.map((line, i) => {
               const person = getPerson(line.speaker);
@@ -250,7 +367,7 @@ function MeetingDetailCard({ entry, viewer }: { entry: Entry; viewer: Viewer }) 
                 <div key={i} className="flex gap-3">
                   {person ? <Avatar person={person} size="sm" /> : (
                     <span className="w-7 h-7 rounded-full border border-stone-border text-[10px] text-warm-gray flex items-center justify-center shrink-0">
-                      {line.speaker.slice(0, 2).toUpperCase()}
+                      {line.speaker ? line.speaker.slice(0, 2).toUpperCase() : <FileText className="w-3 h-3" />}
                     </span>
                   )}
                   <div className="min-w-0">
@@ -270,7 +387,7 @@ function MeetingDetailCard({ entry, viewer }: { entry: Entry; viewer: Viewer }) 
   );
 }
 
-function ActionRow({ action, canApprove: approver }: { action: ActionItem; canApprove: boolean }) {
+function ActionRow({ action, canApprove: approver, live }: { action: ActionItem; canApprove: boolean; live?: boolean }) {
   const { viewer } = useBrainStore();
   const { reviews, review } = useMeetingNotesStore();
   const decision = reviews[action.id] as Review | undefined;
@@ -293,7 +410,11 @@ function ActionRow({ action, canApprove: approver }: { action: ActionItem; canAp
         <span className="flex-1 min-w-0">
           <span className={cn('block text-sm text-ink-black', status === 'rejected' && 'line-through text-warm-gray')}>{action.text}</span>
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-warm-gray">
-            <span className="inline-flex items-center gap-1.5"><Avatar person={owner} size="xs" /> {owner?.name}</span>
+            {owner ? (
+              <span className="inline-flex items-center gap-1.5"><Avatar person={owner} size="xs" /> {owner.name}</span>
+            ) : (
+              <span>{action.ownerName ?? 'Unassigned'}</span>
+            )}
             {action.due && <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> {formatDate(action.due)}</span>}
             {action.externalTo && <span>→ {action.externalTo}</span>}
             {linked && <span className="text-ash-gray">· tracked as “{linked.title}”</span>}
@@ -301,6 +422,11 @@ function ActionRow({ action, canApprove: approver }: { action: ActionItem; canAp
         </span>
         <StatusPillFor status={status} by={decision?.by} />
       </button>
+      {live && status === 'pending_approval' && (
+        <Link href="/brain/approvals" className="flex items-center gap-1 px-3.5 pb-3 -mt-1 text-xs text-cyan-edge hover:underline">
+          Review in Approvals <ArrowRight className="w-3 h-3" />
+        </Link>
+      )}
 
       {action.draft && open && (
         <div className="px-3.5 pb-3.5">
@@ -349,99 +475,12 @@ function ActionRow({ action, canApprove: approver }: { action: ActionItem; canAp
   );
 }
 
-/* ── Voice notes ───────────────────────────────────────────────────────── */
-
-function VoiceNoteRecorder({ viewer, onCreated }: { viewer: Viewer; onCreated: (id: string) => void }) {
-  const recorder = useRecorder();
-  const addNote = useMeetingNotesStore((s) => s.addNote);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  const create = (text: string) => {
-    const now = new Date();
-    const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const id = `note-${now.getTime()}`;
-    const actions = extractActions(text, viewer.personId, id);
-    addNote({
-      id,
-      ownerId: viewer.personId,
-      title: `Voice note · ${hhmm}`,
-      when: `Today · ${hhmm}`,
-      summary: text.split(/(?<=[.!?])\s+/)[0],
-      transcript: [{ speaker: viewer.personId, at: '00:00', text }],
-      actions,
-    });
-    setNotice(null);
-    onCreated(id);
-  };
-
-  const start = async () => {
-    setNotice(null);
-    if (!(await recorder.start())) setNotice('Microphone is blocked or unavailable.');
-  };
-
-  const stop = async () => {
-    const text = await recorder.stop();
-    if (text.trim()) create(text);
-    else setNotice("I didn't catch anything.");
-  };
-
-  return (
-    <Card className="p-4 flex flex-wrap items-center gap-3">
-      <span className="w-10 h-10 rounded-full bg-sky-wash/60 text-cyan-edge flex items-center justify-center shrink-0">
-        <Mic className="w-5 h-5" />
-      </span>
-      <div className="flex-1 min-w-[200px]">
-        <p className="text-sm font-medium text-ink-black">Voice note</p>
-        <p className="text-xs text-warm-gray">
-          {recorder.state === 'recording'
-            ? 'Listening… say what you promised, to whom, and by when.'
-            : recorder.state === 'transcribing'
-              ? 'Transcribing and pulling out action items…'
-              : notice ?? 'Talk for a minute after a call. Sentinel transcribes it and pulls out the follow-ups.'}
-        </p>
-      </div>
-
-      {recorder.state === 'recording' && (
-        <div className="flex items-center gap-[3px] h-8" aria-hidden="true">
-          {recorder.levels.slice(0, 18).map((l, i) => (
-            <span key={i} className="w-[3px] rounded-full bg-cyan-signal" style={{ height: `${Math.round(l * 100)}%` }} />
-          ))}
-          <span className="ml-2 text-xs tabular-nums text-warm-gray">
-            {Math.floor(recorder.seconds / 60)}:{String(recorder.seconds % 60).padStart(2, '0')}
-          </span>
-        </div>
-      )}
-
-      {recorder.state === 'idle' && (
-        <>
-          {notice && (
-            <button onClick={() => create(SAMPLE_VOICE_NOTE)} className="btn-ghost text-xs">
-              Use a sample note instead
-            </button>
-          )}
-          <button onClick={start} className="btn-cyan text-sm inline-flex items-center gap-2">
-            <Mic className="w-4 h-4" /> Record
-          </button>
-        </>
-      )}
-      {recorder.state === 'recording' && (
-        <>
-          <button onClick={recorder.cancel} className="btn-ghost text-xs">Cancel</button>
-          <button onClick={stop} className="btn-cyan text-sm inline-flex items-center gap-2">
-            <Square className="w-3.5 h-3.5 fill-current" /> Stop
-          </button>
-        </>
-      )}
-      {recorder.state === 'transcribing' && <Loader2 className="w-5 h-5 animate-spin text-cyan-signal" />}
-    </Card>
-  );
-}
-
 /* ── Small pieces ──────────────────────────────────────────────────────── */
 
 const SOURCE_TONES: Record<string, string> = {
   zoom: 'bg-[#2d8cff]', google_meet: 'bg-[#00897b]', fireflies: 'bg-[#7c3aed]', otter: 'bg-[#0f62fe]',
   fathom: 'bg-[#111827]', granola: 'bg-[#65a30d]', voice_note: 'bg-cyan-signal',
+  recording: 'bg-cyan-signal', transcript: 'bg-warm-gray',
 };
 
 function SourceTile({ source, small }: { source: string; small?: boolean }) {
@@ -454,7 +493,13 @@ function SourceTile({ source, small }: { source: string; small?: boolean }) {
         SOURCE_TONES[source] ?? 'bg-warm-gray',
       )}
     >
-      {source === 'voice_note' ? <Mic className={small ? 'w-3 h-3' : 'w-4 h-4'} /> : sourceLabel(source).slice(0, 2)}
+      {source === 'voice_note' || source === 'recording' ? (
+        <Mic className={small ? 'w-3 h-3' : 'w-4 h-4'} />
+      ) : source === 'transcript' ? (
+        <FileText className={small ? 'w-3 h-3' : 'w-4 h-4'} />
+      ) : (
+        sourceLabel(source).slice(0, 2)
+      )}
     </span>
   );
 }

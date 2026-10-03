@@ -66,7 +66,7 @@ export function extractActions(transcript: string, ownerId: string, idPrefix: st
         action.status = 'pending_approval';
         action.externalTo = client;
         // A starting point for a human to edit before approving, not a finished email.
-        action.draft = `Hi team at ${client},\n\nA quick follow-up from our side, from today's notes:\n\n• ${text}\n\nBest regards,\nArcline Technologies`;
+        action.draft = `Hi team at ${client},\n\nA quick follow-up from our side, from today's notes:\n\n• ${text}\n\nBest regards,\nBarq Digital`;
       }
       return action;
     });

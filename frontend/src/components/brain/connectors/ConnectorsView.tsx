@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowRight, Check, Loader2, Plus, Search, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, Loader2, Search, X } from 'lucide-react';
 import { CATEGORY_LABELS, CONNECTORS, type Connector, type ConnectorCategory } from '@/demo/connectors';
 import { LIVE_CONNECTORS } from '@/lib/connectorsApi';
 import { galleryState, useConnectorsStore, type GalleryState } from '@/stores/useConnectorsStore';
@@ -80,7 +80,6 @@ export function ConnectorsView() {
         <div className="flex items-center gap-5 text-sm">
           <Stat value={connectedCount} label="connected" accent />
           <Stat value={CONNECTORS.length} label="in this gallery" />
-          <Stat value="500+" label="via Composio" />
         </div>
       </div>
 
@@ -96,7 +95,7 @@ export function ConnectorsView() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search 54 apps: Gmail, WhatsApp, Jira…"
+            placeholder={`Search ${CONNECTORS.length} apps: Gmail, Slack, Jira…`}
             className="w-full h-11 pl-10 pr-9 rounded-full border border-stone-border bg-white text-sm text-ink-black placeholder:text-ash-gray focus:outline-none focus:border-cyan-edge/70"
           />
           {query && (
@@ -128,14 +127,12 @@ export function ConnectorsView() {
       {shown.length === 0 ? (
         <div className="stone-card p-10 text-center">
           <p className="text-sm text-ink-black">No app matches “{query}”.</p>
-          <p className="text-xs text-warm-gray mt-1">Sentinel reaches 500+ more apps through Composio. Request it and we&apos;ll add it to the gallery.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {shown.map((c) => (
             <ConnectorCard key={c.id} connector={c} state={status[c.id]} onOpen={() => setOpen(c)} />
           ))}
-          {filter === 'all' && !q && <RequestCard />}
         </div>
       )}
 
@@ -224,18 +221,6 @@ function ConnectorCard({ connector: c, state, onOpen }: { connector: Connector; 
           </button>
         )}
       </div>
-    </div>
-  );
-}
-
-function RequestCard() {
-  return (
-    <div className="rounded-cards border border-dashed border-stone-muted p-4 flex flex-col items-start justify-center gap-2 text-left">
-      <span className="w-11 h-11 rounded-xl border border-dashed border-stone-muted flex items-center justify-center text-warm-gray">
-        <Plus className="w-5 h-5" />
-      </span>
-      <p className="text-sm font-medium text-ink-black">500+ more apps</p>
-      <p className="text-xs text-warm-gray">Any app on Composio can be connected. Ask and it shows up here.</p>
     </div>
   );
 }
