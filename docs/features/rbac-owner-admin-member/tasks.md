@@ -1,0 +1,14 @@
+- [x] Rename user_role values to owner/member and add admin (Alembic)
+- [x] Add departments, teams, team_memberships, admin_assignments and employees.department_id
+- [x] Resolve per-request Visibility in app/core/visibility.py
+- [x] Apply visibility in TenantScopedRepository with fail-closed default
+- [x] Add visibility rules for tasks, employees, meetings, departments, teams, memberships
+- [x] Add Viewer, require_roles and OwnerUser dependencies; keep FounderUser alias
+- [x] Bind JWT role claim to the user row
+- [x] Scope task, employee and meeting read routes by Viewer
+- [x] Add /org routes for departments, teams, members and admin assignments
+- [x] Accept member/admin role on employee logins; clear assignments on demotion
+- [x] Map chat tool sets to owner/admin/member
+- [x] Security review: login logging, timing, production JWT secret
+- [x] Add scripts/verify_rbac.py and update scripts/verify.py
+- [ ] Frontend legacy dashboard switches to owner/admin/member (claude-one)

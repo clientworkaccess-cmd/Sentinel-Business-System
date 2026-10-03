@@ -13,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError
 
+from app.config import settings
 from app.core.security import create_access_token, hash_password
 from app.database import SessionLocal
 from app.main import app
@@ -32,9 +33,30 @@ from app.services.task_service import TaskService
 
 PASSED: list[str] = []
 FAILED: list[str] = []
+SKIPPED: list[str] = []
+
+#: Checks that need a live model. Without QWEN_API_KEY they are reported as skipped,
+#: not failed, so CI and keyless environments still tell a clean pass from a break.
+#: Their keyless behaviour (a clean 503, no rows written) is checked in its own section.
+LLM = bool(settings.qwen_api_key.strip())
+NEEDS_LLM = frozenset({
+    "transcript extraction returns 201", "extracted task created in DB",
+    "injected transcript returns 201", "injected transcript task created in DB",
+    "founder chat returns 200", "chat response carries conversation_id",
+    "employee chat returns 200", "employee accessing founder conversation returns 404",
+    "audit log records tool executions", "create text meeting returns 201",
+    "text meeting status is completed", "text meeting contains extracted tasks",
+    "upload meeting audio returns 201", "audio meeting has id", "audio meeting status is completed",
+    "get meeting detail returns 200", "meeting detail title matches",
+    "company B reading company A meeting returns 404", "list meetings includes created meetings",
+})
 
 
 def check(label: str, condition: bool, detail: str = "") -> None:
+    if not LLM and label in NEEDS_LLM:
+        SKIPPED.append(label)
+        print(f"  [SKIP] {label} — needs QWEN_API_KEY")
+        return
     (PASSED if condition else FAILED).append(label)
     mark = "PASS" if condition else "FAIL"
     print(f"  [{mark}] {label}" + (f" — {detail}" if detail and not condition else ""))
@@ -192,7 +214,7 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         claims = decode_access_token(token) or {}
         check(
             "token carries the right company_id and role",
-            claims.get("company_id") == str(company_a.id) and claims.get("role") == "founder",
+            claims.get("company_id") == str(company_a.id) and claims.get("role") == "owner",
         )
 
         r = client.post(
@@ -761,7 +783,7 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         emp_token = r_login.json().get("access_token", "")
         emp_auth = {"Authorization": f"Bearer {emp_token}"}
         claims_emp = decode_access_token(emp_token) or {}
-        check("token carries employee role", claims_emp.get("role") == "employee")
+        check("token carries member role", claims_emp.get("role") == "member")
 
         # 5. GET /me/tasks returns only that employee's tasks
         task_own = Task(company_id=company_a.id, title="Own Task", owner_employee_id=emp_a.id, idempotency_key=f"task-own-{suffix}")
@@ -798,9 +820,17 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
             latest_update.get("reported_by_employee_id") == str(emp_a.id) and latest_update.get("reported_via") == "dashboard",
         )
 
-        # 9. Employee token on GET /tasks -> 403. Founder token on /me/tasks -> 403.
+        # 9. Member token on GET /tasks -> only their own tasks (RBAC, #18). Owner
+        #    token on /me/tasks -> 403, since an owner has no employee row.
         r_emp_on_founder = client.get("/api/v1/tasks", headers=emp_auth)
-        check("employee token on founder route returns 403", r_emp_on_founder.status_code == 403, str(r_emp_on_founder.status_code))
+        check(
+            "member token on GET /tasks sees only their own tasks",
+            r_emp_on_founder.status_code == 200
+            # Non-empty first: all() over nothing would pass a member who sees nothing.
+            and r_emp_on_founder.json()["items"]
+            and all(t["owner_employee_id"] == str(emp_a.id) for t in r_emp_on_founder.json()["items"]),
+            str(r_emp_on_founder.status_code),
+        )
 
         r_founder_on_me = client.get("/api/v1/me/tasks", headers=auth_a)
         check("founder token on /me/tasks returns 403", r_founder_on_me.status_code == 403, str(r_founder_on_me.status_code))
@@ -809,7 +839,10 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         r_deactivate = client.patch(f"/api/v1/employees/{emp_a.id}/login", headers=auth_a, json={"is_active": False})
         check("deactivate employee login returns 200", r_deactivate.status_code == 200, str(r_deactivate.status_code))
         r_deactivated_req = client.get("/api/v1/me/tasks", headers=emp_auth)
-        check("deactivated employee next request returns 403", r_deactivated_req.status_code == 403, str(r_deactivated_req.status_code))
+        # Deactivation bumps token_version (#29), so the old session is signed out
+        # outright; a fresh login is what meets the inactive-user 403.
+        check("deactivated employee's existing session is signed out (401)",
+              r_deactivated_req.status_code == 401, str(r_deactivated_req.status_code))
 
         # 11. DELETE .../login -> 204; re-creating with same email -> 201
         r_del_login = client.delete(f"/api/v1/employees/{emp_a.id}/login", headers=auth_a)
@@ -860,7 +893,10 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         db.commit()
 
         tools_emp = [t.name for t in _tools_for(db, company_a, user_emp_check, "chat")]
-        check("employee tools contain only query_my_tasks, get_my_task_detail, report_my_status", set(tools_emp) == {"query_my_tasks", "get_my_task_detail", "report_my_status"})
+        # search_business (#20) is pinned to the Member's own visibility.
+        check("employee tools are own-task tools plus visibility-pinned search_business",
+              set(tools_emp) == {"query_my_tasks", "get_my_task_detail", "report_my_status", "search_business"},
+              str(sorted(tools_emp)))
         check("create_task and approve_task are absent from employee tools", "create_task" not in tools_emp and "approve_task" not in tools_emp)
 
         # The cron entry went with Slack. Chasing is a deterministic query now, not
@@ -1011,6 +1047,18 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         r_cross_meet = client.get(f"/api/v1/meetings/{meet_id}", headers=auth_b)
         check("company B reading company A meeting returns 404", r_cross_meet.status_code == 404, str(r_cross_meet.status_code))
 
+        if not LLM:
+            print("\nWithout a model key")
+            before = len(client.get("/api/v1/meetings", headers=auth_a).json())
+            r = client.post("/api/v1/meetings/text", headers=auth_a,
+                            json={"title": f"Keyless {suffix}", "transcript": "Alice will ship it by Friday."})
+            check("a transcript is refused with a clean 503, not a 500",
+                  r.status_code == 503 and r.json().get("code") == "UNAVAILABLE", r.text[:200])
+            check("…and no half-made meeting row is left behind",
+                  len(client.get("/api/v1/meetings", headers=auth_a).json()) == before)
+            r = client.post("/api/v1/chat", headers=auth_a, json={"message": "What is overdue?"})
+            check("chat is refused with a clean 503", r.status_code == 503, r.text[:200])
+
         print("\nAuth (continued)")
 
         user_a.is_active = False
@@ -1028,7 +1076,8 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         db.commit()
         db.close()
 
-    print(f"\n{len(PASSED)} passed, {len(FAILED)} failed")
+    print(f"\n{len(PASSED)} passed, {len(FAILED)} failed, {len(SKIPPED)} skipped (no QWEN_API_KEY)"
+          if SKIPPED else f"\n{len(PASSED)} passed, {len(FAILED)} failed")
     if FAILED:
         for name in FAILED:
             print(f"  FAILED: {name}")

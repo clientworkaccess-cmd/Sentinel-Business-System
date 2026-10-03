@@ -2,15 +2,22 @@
 
 import uuid
 from collections.abc import Collection, Sequence
+from typing import TYPE_CHECKING
 
-from sqlalchemy import func
+from sqlalchemy import ColumnElement, func
 
 from app.models.employee import Employee
 from app.repositories.base import TenantScopedRepository
 
+if TYPE_CHECKING:
+    from app.core.visibility import Visibility
+
 
 class EmployeeRepository(TenantScopedRepository[Employee]):
     model = Employee
+
+    def _visible_clause(self, visibility: "Visibility") -> ColumnElement[bool]:
+        return visibility.employee_clause(Employee.id)
 
     def find_by_slack_user_id(self, slack_user_id: str) -> Employee | None:
         stmt = self._scoped().where(Employee.slack_user_id == slack_user_id)

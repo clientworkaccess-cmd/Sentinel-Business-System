@@ -1,12 +1,13 @@
 """Knowledge graph — read-only view of what the company knows and how it connects.
 
-Founder-only, matching the scoping of the chat read tool: employees live in Slack and
-never open the dashboard.
+Owner-only, matching the scoping of the chat read tool. HydraDB facts are not yet
+linked to people, so they cannot be narrowed to an Admin's teams or a Member — the
+visibility-filtered graph is #20 (GET /api/v1/graph). Until then, fail closed.
 """
 
 from fastapi import APIRouter, Query
 
-from app.dependencies import CompanyId, CompanyRepo, FounderUser
+from app.dependencies import CompanyId, CompanyRepo, OwnerUser
 from app.exceptions import NotFoundError
 from app.knowledge.store import KnowledgeUnavailable, get_knowledge_store
 from app.schemas.knowledge import (
@@ -32,7 +33,7 @@ _UNREACHABLE = (
 def get_knowledge_graph(
     repo: CompanyRepo,
     company_id: CompanyId,
-    _: FounderUser,
+    _: OwnerUser,
     limit: int = Query(150, ge=1, le=500, description="Max relations to fetch."),
     source_ref: str | None = Query(
         None, description="Scope to one ingested fact id (fact_<sha>)."

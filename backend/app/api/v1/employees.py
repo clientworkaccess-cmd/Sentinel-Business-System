@@ -8,7 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.dependencies import DbSession, EmployeeSvc, FounderUser, TaskSvc
+from app.dependencies import DbSession, EmployeeSvc, OwnerUser, TaskSvc, Viewer
 from app.models.employee import Employee
 from app.models.enums import TaskStatus
 from app.schemas.employee import (
@@ -28,9 +28,13 @@ router = APIRouter(prefix="/employees", tags=["employees"])
 
 def _detail(employee: Employee, service) -> EmployeeDetail:
     detail = EmployeeDetail.model_validate(employee)
-    detail.manager = (
-        EmployeeSummary.model_validate(employee.manager) if employee.manager else None
+    # The manager is loaded through a relationship, not the scoped repository, so
+    # reach is checked here: a Member does not learn who sits above an Admin's team.
+    manager = employee.manager
+    visible = service.visibility is None or service.visibility.can_see_employee(
+        manager.id if manager else None
     )
+    detail.manager = EmployeeSummary.model_validate(manager) if manager and visible else None
     detail.reports = [
         EmployeeSummary.model_validate(e) for e in service.reports_of(employee.id)
     ]
@@ -41,12 +45,13 @@ def _detail(employee: Employee, service) -> EmployeeDetail:
 @router.get("", response_model=EmployeeListResponse)
 def list_employees(
     service: EmployeeSvc,
-    _: FounderUser,
+    _: Viewer,
     q: Annotated[str | None, Query(max_length=200)] = None,
     unmapped: bool | None = None,
     manager_id: uuid.UUID | None = None,
 ) -> EmployeeListResponse:
-    """List employees.
+    """List the employees the caller may see — everyone for an Owner, their teams for
+    an Admin, themselves for a Member.
 
     A name query returns **every** match. Two people called Mark is exactly the case
     that must stay visibly ambiguous rather than resolve to one of them.
@@ -62,7 +67,7 @@ def list_employees(
 
 @router.post("", response_model=EmployeeDetail, status_code=status.HTTP_201_CREATED)
 def create_employee(
-    payload: EmployeeCreate, service: EmployeeSvc, _: FounderUser, db: DbSession
+    payload: EmployeeCreate, service: EmployeeSvc, _: OwnerUser, db: DbSession
 ) -> EmployeeDetail:
     employee = service.create(payload)
     db.commit()
@@ -71,8 +76,8 @@ def create_employee(
 
 
 @router.get("/{employee_id}", response_model=EmployeeDetail)
-def get_employee(employee_id: uuid.UUID, service: EmployeeSvc, _: FounderUser) -> EmployeeDetail:
-    """One employee, with their manager and direct reports."""
+def get_employee(employee_id: uuid.UUID, service: EmployeeSvc, _: Viewer) -> EmployeeDetail:
+    """One employee, with their manager and direct reports. 404 if out of reach."""
     return _detail(service.get_or_404(employee_id), service)
 
 
@@ -81,7 +86,7 @@ def update_employee(
     employee_id: uuid.UUID,
     payload: EmployeeUpdate,
     service: EmployeeSvc,
-    _: FounderUser,
+    _: OwnerUser,
     db: DbSession,
 ) -> EmployeeDetail:
     """Edit an employee. Also how the Slack member-list pull writes slack_user_id."""
@@ -93,7 +98,7 @@ def update_employee(
 
 @router.delete("/{employee_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_employee(
-    employee_id: uuid.UUID, service: EmployeeSvc, _: FounderUser, db: DbSession
+    employee_id: uuid.UUID, service: EmployeeSvc, _: OwnerUser, db: DbSession
 ) -> None:
     """Delete an employee. 409 while they still own open tasks."""
     service.delete(employee_id)
@@ -105,7 +110,7 @@ def list_employee_tasks(
     employee_id: uuid.UUID,
     service: EmployeeSvc,
     tasks: TaskSvc,
-    _: FounderUser,
+    _: Viewer,
     status_filter: Annotated[list[TaskStatus] | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -143,7 +148,7 @@ def create_employee_login(
     employee_id: uuid.UUID,
     payload: EmployeeLoginCreate,
     service: EmployeeSvc,
-    _: FounderUser,
+    _: OwnerUser,
     db: DbSession,
 ) -> EmployeeLoginRead:
     """Provision a login account for an employee."""
@@ -158,7 +163,7 @@ def update_employee_login(
     employee_id: uuid.UUID,
     payload: EmployeeLoginUpdate,
     service: EmployeeSvc,
-    _: FounderUser,
+    _: OwnerUser,
     db: DbSession,
 ) -> EmployeeLoginRead:
     """Update an employee's login credentials or status (e.g. deactivate)."""
@@ -172,7 +177,7 @@ def update_employee_login(
 def delete_employee_login(
     employee_id: uuid.UUID,
     service: EmployeeSvc,
-    _: FounderUser,
+    _: OwnerUser,
     db: DbSession,
 ) -> None:
     """Hard-delete an employee's login account, freeing the email address."""

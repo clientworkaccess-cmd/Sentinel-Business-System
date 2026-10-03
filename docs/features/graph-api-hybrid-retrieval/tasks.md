@@ -1,0 +1,13 @@
+- [x] Propose Postgres hierarchy + HydraDB vectors on #20 before building
+- [x] Add brain_items, brain_item_owners, brain_links (Alembic)
+- [x] Visibility rule for brain items (owner in reach, or managed department/team)
+- [x] GraphService snapshot projecting brain items, tasks and meetings
+- [x] Scope rules mirroring frontend visibility.ts (peopleInScope, itemsInScope, canViewScope)
+- [x] GET /graph in the types.ts shape, camelCase, nulls omitted
+- [x] Owner item writes with upsert on source + external_ref and tenant-validated links
+- [x] Mirror brain items into HydraDB as item:<id> facts
+- [x] HybridRetriever: recall + keyword seed, trace, one-hop expansion, visibility
+- [x] GET /graph/search and search_business chat tool for every role
+- [x] scripts/verify_graph.py
+- [ ] Frontend switches /brain from demo data to GET /graph (claude-one)
+- [ ] Connectors write brain items via GraphService (claude-two)

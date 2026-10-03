@@ -11,7 +11,7 @@ from datetime import date
 
 from fastapi import APIRouter, status
 
-from app.dependencies import CompanyId, CompanyRepo, DbSession, FounderUser
+from app.dependencies import CompanyId, CompanyRepo, DbSession, OwnerUser
 from app.exceptions import NotFoundError
 from app.models.report import Report
 from app.schemas.report import ReportRead, ReportSummary
@@ -35,7 +35,7 @@ def _read(report: Report) -> ReportRead:
 def list_reports(
     db: DbSession,
     company_id: CompanyId,
-    _: FounderUser,
+    _: OwnerUser,
     limit: int = 30,
 ) -> list[ReportSummary]:
     """Past briefings, newest first."""
@@ -54,7 +54,7 @@ def generate(
     db: DbSession,
     repo: CompanyRepo,
     company_id: CompanyId,
-    _: FounderUser,
+    _: OwnerUser,
 ) -> ReportRead:
     """Build today's briefing, replacing today's if one exists.
 
@@ -75,7 +75,7 @@ def generate(
 def get_today(
     db: DbSession,
     company_id: CompanyId,
-    _: FounderUser,
+    _: OwnerUser,
 ) -> ReportRead | None:
     """Today's briefing, or null if it has not been generated yet.
 
@@ -95,7 +95,7 @@ def get_report(
     report_id: uuid.UUID,
     db: DbSession,
     company_id: CompanyId,
-    _: FounderUser,
+    _: OwnerUser,
 ) -> ReportRead:
     report = (
         db.query(Report)
@@ -112,7 +112,7 @@ def delete_report(
     report_id: uuid.UUID,
     db: DbSession,
     company_id: CompanyId,
-    _: FounderUser,
+    _: OwnerUser,
 ) -> None:
     """Discard a briefing. It can always be rebuilt — nothing here is a source of
     truth, it is a view over tasks that still exist."""

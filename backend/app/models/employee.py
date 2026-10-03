@@ -16,6 +16,7 @@ from app.models.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMix
 
 if TYPE_CHECKING:
     from app.models.company import Company
+    from app.models.org import Department
     from app.models.task import Task
     from app.models.user import User
 
@@ -41,7 +42,23 @@ class Employee(UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, Base):
         PGUUID(as_uuid=True), ForeignKey("employees.id", ondelete="SET NULL"), nullable=True
     )
 
+    #: Home department. Null until the org is structured. What an Admin over this
+    #: department may see starts here — see app/core/visibility.py. use_alter breaks
+    #: the employees ↔ departments FK cycle (departments.head_employee_id).
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey(
+            "departments.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_employees_department_id",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     company: Mapped["Company"] = relationship(back_populates="employees")
+    department: Mapped["Department | None"] = relationship(foreign_keys=[department_id])
     manager: Mapped["Employee | None"] = relationship(
         remote_side="Employee.id", back_populates="reports"
     )
