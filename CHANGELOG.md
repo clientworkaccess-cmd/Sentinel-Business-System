@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.24.3] - 2026-10-03
+
+### Fixed
+- Composio usage telemetry stayed on during syncs: the SDK's `allow_tracking` is per-thread, so scheduler and background-task threads fell back to "on" and posted a metric per provider call. The gateway now switches it off at the start of every call (`_no_tracking()` in `app/connectors/gateway.py`). Found in the first live Gmail sync.
+
 ## [0.24.2] - 2026-10-03
 
 ### Changed
