@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.24.2] - 2026-10-03
+
+### Changed
+- The frontend accepts both backend role spellings, `owner | admin | member` (from #18 / PR #29) and the old `founder | employee`, through `isMemberRole` / `isOwnerRole` in `src/types`, so it works whichever of the two merges first. Admins get the dashboard view (the API still rejects their writes); members get `/me`. Never compare `user.role` against a literal.
+
 ## [0.24.1] - 2026-10-03
 
 ### Added

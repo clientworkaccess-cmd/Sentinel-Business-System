@@ -9,6 +9,7 @@ import { ArrowRight } from 'lucide-react';
 import { BrandMark } from '@/components/ui';
 import { DemoLogin } from '@/components/auth';
 import { AUTH_MODE } from '@/lib/authMode';
+import { isMemberRole } from '@/types';
 
 /** The original FastAPI login, used when NEXT_PUBLIC_AUTH_MODE=backend. Unchanged. */
 function BackendLogin() {
@@ -23,7 +24,7 @@ function BackendLogin() {
     setError('');
     try {
       const user = await login(email, password);
-      if (user.role === 'employee') {
+      if (isMemberRole(user.role)) {
         router.push('/me');
       } else {
         router.push('/approvals');

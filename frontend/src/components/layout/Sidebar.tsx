@@ -10,6 +10,7 @@ import {
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useTasksStore } from '@/stores/useTasksStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { isMemberRole } from '@/types';
 
 interface NavItem {
   name: string;
@@ -34,7 +35,7 @@ export const Sidebar: React.FC = () => {
   const collapsed = isNavCollapsed;
 
   const navItems: NavItem[] =
-    user?.role === 'employee'
+    isMemberRole(user?.role)
       ? [{ name: 'My Commitments', href: '/me', icon: UserCheck }]
       : [
           {

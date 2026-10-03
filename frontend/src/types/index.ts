@@ -1,4 +1,15 @@
-export type Role = 'founder' | 'employee';
+/**
+ * Backend user roles. #18 (PR #29) renamed founder → owner and employee → member
+ * and added admin. Both spellings are accepted, so the frontend works on either
+ * side of that migration; compare through the helpers below, never against literals.
+ */
+export type Role = 'owner' | 'admin' | 'member' | 'founder' | 'employee';
+
+/** Members (formerly employees) get the personal /me view. */
+export const isMemberRole = (role?: Role | null) => role === 'member' || role === 'employee';
+
+/** Owners (formerly founders) see and act on everything. */
+export const isOwnerRole = (role?: Role | null) => role === 'owner' || role === 'founder';
 export type TaskStatus =
   | 'pending_approval'
   | 'approved'

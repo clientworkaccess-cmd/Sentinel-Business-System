@@ -3,6 +3,7 @@ import { DEMO_PERSONAS, getPerson } from '@/demo/org';
 import type { Role } from '@/demo/types';
 import { AUTH_MODE } from '@/lib/authMode';
 import { useAuthStore } from './useAuthStore';
+import { isOwnerRole } from '@/types';
 
 /**
  * Who is signed in to /brain (#25), in either auth mode.
@@ -53,7 +54,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     await useAuthStore.getState().fetchCurrentUser();
     const user = useAuthStore.getState().user;
     if (!user) return set({ session: null, status: 'signed_out' });
-    const role: Role = user.role === 'founder' ? 'owner' : 'member';
+    const role: Role = isOwnerRole(user.role) ? 'owner' : user.role === 'admin' ? 'admin' : 'member';
     set({ session: { role, personId: DEMO_PERSONAS[role] }, status: 'signed_in' });
   },
 
