@@ -9,6 +9,13 @@
 ### Changed
 - The demo company is Barq Digital (barqdigitalai.com emails) instead of Arcline Technologies. Connectors no longer mention Composio anywhere in the UI, and the gallery uses Alyan's trimmed list from main.
 
+## [0.25.0] - 2026-10-03
+
+### Changed
+- The /brain demo chat now answers from Alyan's n8n Sentinel agent when `SENTINEL_AGENT_WEBHOOK_URL` is set: the Next route POSTs `{ message, sessionId, viewer, scope }` server-side and shows `{ response }` (also accepts `output`/array/plain-text replies). Qwen is next in line and the scripted answers remain the fallback, so a down or inactive webhook never breaks the stage; `x-sentinel-agent` says which answered.
+- Voice: set `ELEVENLABS_VOICE_ID` (the old `_EN`/`_UR` become optional per-language overrides); a question asked out loud now gets its answer spoken even with voice replies off. Keys and the webhook URL stay server-side.
+- n8n's `{"message":"Workflow was started"}` (a Webhook node set to respond Immediately) is not treated as an answer; chat falls through to Qwen until the workflow returns `{ response }`.
+
 ## [0.24.3] - 2026-10-03
 
 ### Fixed
