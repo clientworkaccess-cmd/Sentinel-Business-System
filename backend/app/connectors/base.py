@@ -72,10 +72,18 @@ class PeopleDirectory:
     by_slack_id: dict[str, uuid.UUID]
     #: Domains the company's own people use. An address outside them is external.
     company_domains: frozenset[str]
+    #: The connecting person's own addresses (login, mailbox, calendar, Drive user).
+    #: Always internal, even on a public domain like gmail.com: a mailbox owner is
+    #: never an outsider on their own threads. Filled by the runner and connectors.
+    self_addresses: set[str] = field(default_factory=set)
+
+    def add_self(self, address: str | None) -> None:
+        if address and "@" in address:
+            self.self_addresses.add(address.strip().lower())
 
     def is_internal_email(self, address: str) -> bool:
         address = address.strip().lower()
-        if address in self.by_email:
+        if address in self.by_email or address in self.self_addresses:
             return True
         domain = address.rpartition("@")[2]
         return bool(domain) and domain in self.company_domains

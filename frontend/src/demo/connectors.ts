@@ -12,7 +12,7 @@
 
 export type ConnectorCategory =
   | 'google' | 'microsoft' | 'communication' | 'work' | 'meetings'
-  | 'engineering' | 'crm' | 'finance' | 'files' | 'support';
+  | 'engineering' | 'crm' | 'support';
 
 export interface Connector {
   id: string;
@@ -41,8 +41,6 @@ export const CATEGORY_LABELS: Record<ConnectorCategory, string> = {
   meetings: 'Meetings & notes',
   engineering: 'Engineering',
   crm: 'CRM & sales',
-  finance: 'Finance & billing',
-  files: 'Files & design',
   support: 'Support',
 };
 
@@ -65,7 +63,7 @@ const ROWS: Row[] = [
   ['google_drive', 'Google Drive', 'google', '#4285F4', 'Contracts, SOWs and proposals, searchable by what they say.', ['Files', 'Folders', 'Sharing'], { status: 'connected', syncUnit: 'files', syncCount: 4120 }],
   ['google_docs', 'Google Docs', 'google', '#4285F4', 'Plans, PRDs and meeting notes as living knowledge.', ['Documents', 'Comments'], { status: 'connected', syncUnit: 'documents', syncCount: 1870 }],
   ['google_sheets', 'Google Sheets', 'google', '#34A853', 'Trackers and forecasts the team actually maintains.', ['Spreadsheets'], { syncUnit: 'sheets', syncCount: 640 }],
-  ['google_meet', 'Google Meet', 'google', '#00897B', 'Recordings and transcripts from every Meet call.', ['Recordings', 'Transcripts'], { status: 'connected', syncUnit: 'meetings', syncCount: 980 }],
+
 
   // Microsoft 365
   ['outlook', 'Outlook', 'microsoft', '#0078D4', 'Email and calendar for teams on Microsoft 365.', ['Emails', 'Events']],
@@ -76,11 +74,7 @@ const ROWS: Row[] = [
   // Communication
   ['slack', 'Slack', 'communication', '#4A154B', 'Channels and threads where decisions actually get made.', ['Messages', 'Threads', 'Files'], { status: 'connected', featured: true, syncUnit: 'messages', syncCount: 48230 }],
   ['whatsapp', 'WhatsApp Business', 'communication', '#25D366', 'Client conversations from your business number, with approval before replies.', ['Chats', 'Media'], { status: 'connected', featured: true, auth: 'qr', syncUnit: 'messages', syncCount: 9120 }],
-  ['discord', 'Discord', 'communication', '#5865F2', 'Community and partner servers.', ['Messages']],
-  ['telegram', 'Telegram', 'communication', '#26A5E4', 'Groups and channels with clients and vendors.', ['Messages']],
-  ['intercom', 'Intercom', 'communication', '#286EFA', 'Customer conversations and help-center articles.', ['Conversations', 'Articles']],
-
-  // Work management
+  
   ['clickup', 'ClickUp', 'work', '#7B68EE', 'Tasks, owners and due dates, kept in sync with what was promised.', ['Tasks', 'Comments', 'Docs'], { status: 'connected', featured: true, syncUnit: 'tasks', syncCount: 3420 }],
   ['jira', 'Jira', 'work', '#0052CC', 'Issues, sprints and blockers across every client build.', ['Issues', 'Sprints', 'Comments'], { status: 'connected', syncUnit: 'issues', syncCount: 7810 }],
   ['linear', 'Linear', 'work', '#5E6AD2', 'Issues and cycles for product teams.', ['Issues', 'Cycles'], { status: 'connected', syncUnit: 'issues', syncCount: 1240 }],
@@ -88,23 +82,17 @@ const ROWS: Row[] = [
   ['asana', 'Asana', 'work', '#F06A6A', 'Projects, tasks and portfolios.', ['Tasks', 'Projects']],
   ['trello', 'Trello', 'work', '#0052CC', 'Boards and cards.', ['Cards', 'Boards']],
   ['monday', 'monday.com', 'work', '#FF3D57', 'Boards, items and updates.', ['Items', 'Updates']],
-  ['basecamp', 'Basecamp', 'work', '#1D2D35', 'Projects, to-dos and message boards.', ['To-dos', 'Messages']],
-  ['confluence', 'Confluence', 'work', '#172B4D', 'Team spaces and documentation.', ['Pages', 'Spaces']],
 
   // Meetings & notes
-  ['zoom', 'Zoom', 'meetings', '#0B5CFF', 'Cloud recordings and transcripts from every client call.', ['Recordings', 'Transcripts'], { status: 'connected', featured: true, syncUnit: 'meetings', syncCount: 1460 }],
   ['fireflies', 'Fireflies', 'meetings', '#7C3AED', 'AI meeting notes, decisions and action items.', ['Transcripts', 'Summaries'], { status: 'connected', featured: true, auth: 'api_key', syncUnit: 'meetings', syncCount: 860 }],
   ['otter', 'Otter', 'meetings', '#3C84F5', 'Live transcripts and meeting summaries.', ['Transcripts'], { status: 'connected', auth: 'api_key', syncUnit: 'meetings', syncCount: 410 }],
   ['fathom', 'Fathom', 'meetings', '#9187FF', 'Call recordings with highlights.', ['Recordings', 'Highlights'], { status: 'connected', auth: 'api_key', syncUnit: 'meetings', syncCount: 290 }],
-  ['granola', 'Granola', 'meetings', '#65A30D', 'Notes you write, enhanced with the transcript.', ['Notes'], { auth: 'api_key' }],
-  ['tldv', 'tl;dv', 'meetings', '#5B4DFF', 'Meeting recordings and AI notes.', ['Recordings'], { status: 'coming_soon', auth: 'api_key' }],
-  ['loom', 'Loom', 'meetings', '#625DF5', 'Async video updates and walkthroughs.', ['Videos', 'Transcripts']],
+
 
   // Engineering
   ['github', 'GitHub', 'engineering', '#181717', 'Pull requests, reviews and releases linked to the work they ship.', ['Pull requests', 'Issues', 'Releases'], { status: 'connected', syncUnit: 'pull requests', syncCount: 5320 }],
   ['gitlab', 'GitLab', 'engineering', '#FC6D26', 'Merge requests and pipelines.', ['Merge requests', 'Issues']],
   ['bitbucket', 'Bitbucket', 'engineering', '#0052CC', 'Repositories and pull requests.', ['Pull requests']],
-  ['sentry', 'Sentry', 'engineering', '#362D59', 'Production errors, tied to the client they affect.', ['Issues', 'Releases'], { auth: 'api_key' }],
   ['vercel', 'Vercel', 'engineering', '#000000', 'Deployments and preview links.', ['Deployments']],
 
   // CRM & sales
@@ -113,21 +101,7 @@ const ROWS: Row[] = [
   ['pipedrive', 'Pipedrive', 'crm', '#017737', 'Deals and pipeline stages.', ['Deals', 'Activities']],
   ['zoho_crm', 'Zoho CRM', 'crm', '#E42527', 'Leads, accounts and deals.', ['Leads', 'Deals']],
   ['apollo', 'Apollo.io', 'crm', '#1C1C1C', 'Prospects and outreach sequences.', ['Contacts', 'Sequences'], { auth: 'api_key' }],
-  ['close', 'Close', 'crm', '#2463EB', 'Calls, emails and deals for inside sales.', ['Leads', 'Calls'], { status: 'coming_soon' }],
 
-  // Finance & billing
-  ['quickbooks', 'QuickBooks', 'finance', '#2CA01C', 'Invoices, payments and overdue receivables.', ['Invoices', 'Payments'], { status: 'connected', syncUnit: 'invoices', syncCount: 1980 }],
-  ['xero', 'Xero', 'finance', '#13B5EA', 'Invoices, bills and bank feeds.', ['Invoices', 'Bills']],
-  ['stripe', 'Stripe', 'finance', '#635BFF', 'Payments, subscriptions and disputes.', ['Payments', 'Customers'], { auth: 'api_key' }],
-  ['paypal', 'PayPal', 'finance', '#002991', 'Payments and payouts.', ['Transactions']],
-  ['freshbooks', 'FreshBooks', 'finance', '#0075DD', 'Invoices and time tracking.', ['Invoices', 'Time']],
-
-  // Files & design
-  ['figma', 'Figma', 'files', '#F24E1E', 'Design files and comments, linked to the projects they belong to.', ['Files', 'Comments'], { status: 'connected', syncUnit: 'files', syncCount: 720 }],
-  ['dropbox', 'Dropbox', 'files', '#0061FF', 'Shared folders and files.', ['Files']],
-  ['box', 'Box', 'files', '#0061D5', 'Enterprise content and folders.', ['Files']],
-  ['airtable', 'Airtable', 'files', '#18BFFF', 'Bases used as lightweight databases.', ['Records']],
-  ['miro', 'Miro', 'files', '#050038', 'Boards from workshops and planning.', ['Boards']],
 
   // Support
   ['zendesk', 'Zendesk', 'support', '#03363D', 'Tickets and SLAs, so support issues reach the account owner.', ['Tickets', 'Users']],

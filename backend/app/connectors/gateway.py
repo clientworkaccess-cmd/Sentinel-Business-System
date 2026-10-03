@@ -94,12 +94,26 @@ class Gateway(Protocol):
     def get_text(self, account_id: str, url: str, params: dict[str, Any] | None = None) -> str: ...
 
 
+def _no_tracking() -> None:
+    """Keep Composio's usage telemetry off in *this* thread.
+
+    The SDK's ``allow_tracking`` is a ContextVar set where the client is built, so
+    syncs on scheduler and background-task threads fell back to its default (on)
+    and posted an invocation metric per provider call. Called at the top of every
+    public gateway method, so no thread can miss it.
+    """
+    from composio.core.models.base import allow_tracking
+
+    allow_tracking.set(False)
+
+
 class ComposioGateway:
     """The real gateway. One instance per process; the SDK client is thread-safe."""
 
     def __init__(self, api_key: str) -> None:
         from composio import Composio  # imported lazily: optional at import time
 
+        _no_tracking()
         self._client = Composio(api_key=api_key, allow_tracking=False, timeout=60)
         self._auth_configs: dict[str, str] = {}
         self._lock = threading.Lock()
@@ -108,6 +122,7 @@ class ComposioGateway:
 
     def auth_config_id(self, toolkit: str) -> str:
         """The Composio-managed auth config for a toolkit, found or created once."""
+        _no_tracking()
         pinned = getattr(settings, f"composio_auth_config_{toolkit}", "").strip()
         if pinned:
             return pinned
@@ -130,6 +145,7 @@ class ComposioGateway:
             return chosen
 
     def link(self, *, user_ref: str, toolkit: str, callback_url: str) -> LinkResult:
+        _no_tracking()
         auth_config = self.auth_config_id(toolkit)
         try:
             # allow_multiple: a reconnect after expiry creates a fresh account while
@@ -144,6 +160,7 @@ class ComposioGateway:
         return LinkResult(account_id=request.id, redirect_url=request.redirect_url)
 
     def account(self, account_id: str) -> AccountState:
+        _no_tracking()
         try:
             acc = self._client.connected_accounts.get(account_id)
         except Exception as exc:  # noqa: BLE001
@@ -155,6 +172,7 @@ class ComposioGateway:
         )
 
     def delete(self, account_id: str) -> None:
+        _no_tracking()
         try:
             self._client.connected_accounts.delete(account_id)
         except Exception as exc:  # noqa: BLE001
@@ -197,6 +215,7 @@ class ComposioGateway:
         return str(response.data)
 
     def _proxy(self, account_id: str, url: str, params: dict[str, Any] | None) -> Any:
+        _no_tracking()
         query = [
             {"name": k, "type": "query", "value": str(v)}
             for k, v in (params or {}).items()
@@ -224,6 +243,11 @@ class ComposioGateway:
                 # include quota errors, which are told apart by their reason.
                 if status == 403 and _is_quota(response.data):
                     status = 429
+                elif attempt == 1:
+                    # Often an access token that expired mid-sync: one more try lets
+                    # Composio refresh it. Found in a live Drive sync.
+                    time.sleep(1.0)
+                    continue
                 else:
                     raise ProviderAuthError("The provider no longer accepts this connection. Reconnect it.")
             if status in (404, 410):
