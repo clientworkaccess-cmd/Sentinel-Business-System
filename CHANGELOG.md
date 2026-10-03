@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.3] - 2026-10-03
+
+### Fixed
+- Composio usage telemetry stayed on during syncs: the SDK's `allow_tracking` is per-thread, so scheduler and background-task threads fell back to "on" and posted a metric per provider call. The gateway now switches it off at the start of every call (`_no_tracking()` in `app/connectors/gateway.py`). Found in the first live Gmail sync.
+- Every live Gmail thread came in "external" because the mailbox was a personal gmail.com address the company directory didn't know. The connecting person's own addresses (login, mailbox, calendar owner, Drive user) now always count as internal, which matters because "external" is what routes outbound messages to the approval gate.
+- A live Drive sync stopped at 325 files and asked for a reconnect after one refused call, though the grant was fine (likely a token expiring mid-sync). Now a 401/403 is retried once, a connection is only marked expired when Composio itself says the account is dead, and a single file that can't be exported is indexed by metadata instead of failing the run.
+
 ## [0.24.2] - 2026-10-03
 
 ### Changed
