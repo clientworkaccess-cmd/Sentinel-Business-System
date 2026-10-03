@@ -59,6 +59,8 @@ export function extractResponse(raw: string): string {
   if (typeof first === 'string') return first.trim();
   if (first && typeof first === 'object') {
     const o = first as Record<string, unknown>;
+    // n8n's ack when the Webhook node responds "Immediately": not an answer.
+    if (o.message === 'Workflow was started' && Object.keys(o).length === 1) return '';
     for (const key of ['response', 'output', 'text', 'message', 'answer']) {
       if (typeof o[key] === 'string' && (o[key] as string).trim()) return (o[key] as string).trim();
     }
