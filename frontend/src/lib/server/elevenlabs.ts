@@ -35,11 +35,18 @@ export async function transcribe(audio: Blob, language?: string): Promise<{ text
 const URDU_SCRIPT = /[؀-ۿ]/;
 const ROMAN_URDU = /\b(hai|hain|kya|mein|aap|ka|ki|ke|nahi|haal)\b/i;
 
-/** Pick the Urdu voice for Urdu or Roman Urdu text, the English voice otherwise. */
+/**
+ * The voice to speak with. ELEVENLABS_VOICE_ID is the one to set. The optional
+ * ELEVENLABS_VOICE_ID_EN / _UR override it per language (Urdu or Roman Urdu text
+ * uses _UR), for a multilingual setup.
+ */
 export function pickVoice(text: string, requested?: 'en' | 'ur'): string {
   const lang = requested ?? (URDU_SCRIPT.test(text) || ROMAN_URDU.test(text) ? 'ur' : 'en');
-  const voice = lang === 'ur' ? process.env.ELEVENLABS_VOICE_ID_UR || process.env.ELEVENLABS_VOICE_ID_EN : process.env.ELEVENLABS_VOICE_ID_EN;
-  if (!voice) throw new VoiceUnavailable('ELEVENLABS_VOICE_ID_EN is not set');
+  const base = process.env.ELEVENLABS_VOICE_ID;
+  const voice = lang === 'ur'
+    ? process.env.ELEVENLABS_VOICE_ID_UR || base || process.env.ELEVENLABS_VOICE_ID_EN
+    : process.env.ELEVENLABS_VOICE_ID_EN || base;
+  if (!voice) throw new VoiceUnavailable('ELEVENLABS_VOICE_ID is not set');
   return voice;
 }
 

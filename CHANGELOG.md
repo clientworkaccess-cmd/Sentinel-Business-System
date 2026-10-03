@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.25.0] - 2026-10-03
+
+### Changed
+- The /brain demo chat now answers from Alyan's n8n Sentinel agent when `SENTINEL_AGENT_WEBHOOK_URL` is set: the Next route POSTs `{ message, sessionId, viewer, scope }` server-side and shows `{ response }` (also accepts `output`/array/plain-text replies). Qwen is next in line and the scripted answers remain the fallback, so a down or inactive webhook never breaks the stage; `x-sentinel-agent` says which answered.
+- Voice: set `ELEVENLABS_VOICE_ID` (the old `_EN`/`_UR` become optional per-language overrides); a question asked out loud now gets its answer spoken even with voice replies off. Keys and the webhook URL stay server-side.
+
 ## [0.24.2] - 2026-10-03
 
 ### Changed
