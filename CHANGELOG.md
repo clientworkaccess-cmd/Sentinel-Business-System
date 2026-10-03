@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-10-02
+
+### Added
+- Real connectors (#11–#13) via Composio-managed OAuth: Gmail, Google Calendar, Google Drive (Docs exported as text) and Slack public channels sync into `brain_items` and HydraDB, owned by the connecting person and participants, so Owner/Admin/Member visibility applies unchanged. Routes: `GET/POST/DELETE /api/v1/connectors…`; see `docs/features/connectors/architecture.md`.
+- Sentinel never stores a provider token (Composio holds them; `connections` keeps only its account id). Set `COMPOSIO_API_KEY`, `PUBLIC_API_URL` and `FRONTEND_URL` in `backend/.env`; without the key the gallery reports connectors unavailable and nothing else changes.
+
 ## [0.22.0] - 2026-10-02
 
 ### Added

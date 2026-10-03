@@ -85,6 +85,22 @@ class ConflictError(SentinelError):
         super().__init__(message)
 
 
+class UpstreamError(SentinelError):
+    """A provider we depend on (Composio, Google, Slack) failed or refused."""
+
+    status_code = status.HTTP_502_BAD_GATEWAY
+    code = "UPSTREAM_ERROR"
+    message = "A connected service did not respond as expected. Try again shortly."
+
+
+class UnavailableError(SentinelError):
+    """A feature that needs configuration this server does not have."""
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    code = "UNAVAILABLE"
+    message = "This feature is not configured on this server."
+
+
 def _body(code: str, message: str) -> dict[str, object]:
     return {"error": message, "code": code}
 

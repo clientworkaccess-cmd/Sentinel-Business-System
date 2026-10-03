@@ -132,3 +132,20 @@ class BrainItemStatus(str, enum.Enum):
     BLOCKED = "blocked"
     DONE = "done"
     PENDING_APPROVAL = "pending_approval"
+
+
+class ConnectionStatus(str, enum.Enum):
+    """A connector account's lifecycle, as Sentinel last saw it.
+
+    Composio holds the OAuth tokens. This is our cached view of its status, refreshed
+    on every callback, sync and status read, so the UI never has to call Composio.
+    """
+
+    #: Link created; the user has not finished the provider's consent screen.
+    PENDING = "pending"
+    ACTIVE = "active"
+    #: The provider rejected the grant (revoked, expired, password change). Only a
+    #: reconnect fixes it, so syncs stop until then.
+    EXPIRED = "expired"
+    #: The consent flow failed or was abandoned.
+    FAILED = "failed"
