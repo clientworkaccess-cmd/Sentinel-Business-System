@@ -2,15 +2,24 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Check, KeyRound, Loader2, Lock, RefreshCw, ShieldCheck, Sparkles, Unplug, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, KeyRound, Loader2, Lock, RefreshCw, ShieldCheck, Sparkles, Unplug, X } from 'lucide-react';
 import { BrandLockup } from '@/components/ui';
 import { CATEGORY_LABELS, type Connector } from '@/demo/connectors';
 import { ORG } from '@/demo/org';
+import {
+  LIVE_CONNECTORS,
+  apiErrorMessage,
+  disconnectLive,
+  since,
+  startConnect,
+  syncNow,
+  type LiveConnector,
+} from '@/lib/connectorsApi';
 import { useConnectorsStore } from '@/stores/useConnectorsStore';
 import { cn } from '@/lib/utils';
 import { ConnectorLogo } from './ConnectorLogo';
 
-type Step = 'permissions' | 'authorizing' | 'apikey' | 'qr' | 'syncing' | 'done' | 'manage';
+type Step = 'permissions' | 'authorizing' | 'redirecting' | 'apikey' | 'qr' | 'syncing' | 'done' | 'manage';
 
 const fmt = (n: number) => n.toLocaleString('en-US');
 
@@ -22,14 +31,22 @@ function useLatest<T>(value: T) {
 }
 
 /**
- * The Connect Now flow (#10). Simulated end to end — no credentials leave the
- * page — but shaped exactly like the real OAuth / API-key / QR flows #11 wires up.
+ * The Connect Now flow.
+ *
+ * Demo mode (#10): simulated end to end — no credentials leave the page.
+ * Backend mode (#33), for Gmail, Calendar, Drive, Docs and Slack: "Continue" asks the
+ * API for Composio's consent URL and sends the browser there; Composio returns it to
+ * /brain/connectors?result=… once the provider has granted access.
  */
 export function ConnectModal({ connector, onClose }: { connector: Connector; onClose: () => void }) {
   const status = useConnectorsStore((s) => s.status[connector.id]);
   const lastSync = useConnectorsStore((s) => s.lastSync[connector.id]);
+  const live = useConnectorsStore((s) => s.live?.[connector.id]);
   const { connect, disconnect } = useConnectorsStore();
-  const [step, setStep] = useState<Step>(status === 'connected' ? 'manage' : 'permissions');
+  const isLive = LIVE_CONNECTORS && !!live;
+  const [step, setStep] = useState<Step>(
+    isLive ? (live.status === 'connected' || live.status === 'pending' ? 'manage' : 'permissions') : status === 'connected' ? 'manage' : 'permissions',
+  );
   const dialog = useRef<HTMLDivElement>(null);
 
   // Esc closes; Tab stays inside the dialog.
@@ -52,7 +69,8 @@ export function ConnectModal({ connector, onClose }: { connector: Connector; onC
     dialog.current?.querySelector<HTMLElement>('button, input')?.focus();
   }, [step]);
 
-  const begin = () => setStep(connector.auth === 'qr' ? 'qr' : connector.auth === 'api_key' ? 'apikey' : 'authorizing');
+  const begin = () =>
+    setStep(isLive ? 'redirecting' : connector.auth === 'qr' ? 'qr' : connector.auth === 'api_key' ? 'apikey' : 'authorizing');
 
   return (
     <>
@@ -72,13 +90,17 @@ export function ConnectModal({ connector, onClose }: { connector: Connector; onC
             </button>
           </div>
           <div className="px-5 pb-5 pt-2">
-            {step === 'permissions' && <Permissions connector={connector} onCancel={onClose} onContinue={begin} />}
+            {step === 'permissions' && <Permissions connector={connector} live={isLive ? live : undefined} onCancel={onClose} onContinue={begin} />}
             {step === 'authorizing' && <Authorizing connector={connector} onDone={() => setStep('syncing')} />}
+            {step === 'redirecting' && <Redirecting connector={connector} onBack={() => setStep('permissions')} />}
             {step === 'apikey' && <ApiKey connector={connector} onDone={() => setStep('syncing')} />}
             {step === 'qr' && <Qr connector={connector} onDone={() => setStep('syncing')} />}
             {step === 'syncing' && <Syncing connector={connector} onDone={() => { connect(connector.id); setStep('done'); }} />}
             {step === 'done' && <Done connector={connector} onClose={onClose} />}
-            {step === 'manage' && (
+            {step === 'manage' && isLive && (
+              <LiveManage connector={connector} live={live} onReconnect={() => setStep('redirecting')} onClose={onClose} />
+            )}
+            {step === 'manage' && !isLive && (
               <Manage
                 connector={connector}
                 lastSync={lastSync}
@@ -105,14 +127,36 @@ function Handshake({ connector }: { connector: Connector }) {
   );
 }
 
-function Permissions({ connector, onCancel, onContinue }: { connector: Connector; onCancel: () => void; onContinue: () => void }) {
+function Permissions({
+  connector,
+  live,
+  onCancel,
+  onContinue,
+}: {
+  connector: Connector;
+  live?: LiveConnector;
+  onCancel: () => void;
+  onContinue: () => void;
+}) {
+  const reconnect = live?.status === 'needs_reconnect';
+  const unavailable = live ? !live.available : false;
+  const viaDrive = live && live.servedBy !== live.id;
   return (
     <div className="space-y-5">
       <Handshake connector={connector} />
       <div className="text-center">
-        <h2 className="font-display text-[22px] text-ink-black">Connect {connector.name}</h2>
+        <h2 className="font-display text-[22px] text-ink-black">{reconnect ? 'Reconnect' : 'Connect'} {connector.name}</h2>
         <p className="text-sm text-warm-gray mt-1">{connector.description}</p>
       </div>
+      {reconnect && (
+        <p className="rounded-cards border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-900 flex gap-2">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          {live?.mine?.statusReason ?? `${connector.name} stopped accepting Sentinel's access. Sign in again to resume syncing.`}
+        </p>
+      )}
+      {viaDrive && (
+        <p className="text-xs text-warm-gray text-center">Google Docs are read through your Google Drive connection.</p>
+      )}
 
       <div className="rounded-cards border border-stone-border bg-white p-4 space-y-3">
         <p className="text-xs font-medium text-ink-black">Sentinel will be able to</p>
@@ -137,10 +181,173 @@ function Permissions({ connector, onCancel, onContinue }: { connector: Connector
         </dl>
       </div>
 
+      {unavailable && (
+        <p className="text-xs text-warm-gray text-center">Live connections aren&apos;t switched on for this server yet. Ask your admin to add the Composio key.</p>
+      )}
       <div className="flex gap-2">
         <button onClick={onCancel} className="btn-ghost flex-1 text-sm">Cancel</button>
-        <button onClick={onContinue} className="btn-cyan flex-1 text-sm inline-flex items-center justify-center gap-1.5">
+        <button
+          onClick={onContinue}
+          disabled={unavailable}
+          className="btn-cyan flex-1 text-sm inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+        >
           {connector.auth === 'oauth2' ? `Continue to ${connector.name}` : 'Continue'} <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+      {live && (
+        <p className="text-[11px] text-ash-gray text-center flex items-center justify-center gap-1">
+          <Lock className="w-3 h-3" /> Sign-in is handled by Composio. Sentinel never sees or stores your password or tokens.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One consent request per attempt, however often the effect runs. Each request
+ * replaces the previous Composio link, so a second one (StrictMode's double effect,
+ * a double click) would strand the browser on a link the API no longer expects.
+ */
+const inflight = new Map<string, Promise<string>>();
+
+/** Backend mode: fetch Composio's consent URL and leave for it. */
+function Redirecting({ connector, onBack }: { connector: Connector; onBack: () => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    const key = `${connector.id}:${attempt}`;
+    if (!inflight.has(key)) {
+      inflight.set(key, startConnect(connector.id));
+      // Forget it once settled, so a later attempt (or reopening the dialog) asks again.
+      inflight.get(key)!.finally(() => setTimeout(() => inflight.delete(key), 1000)).catch(() => {});
+    }
+    inflight.get(key)!
+      .then((url) => { if (!cancelled) window.location.assign(url); })
+      .catch((err) => { if (!cancelled) setError(apiErrorMessage(err, `Could not start the ${connector.name} sign-in.`)); });
+    return () => { cancelled = true; };
+  }, [connector.id, connector.name, attempt]);
+  return (
+    <div className="space-y-5 py-2">
+      <Handshake connector={connector} />
+      {error ? (
+        <div className="space-y-4 text-center">
+          <p className="text-sm text-rose-700 flex items-center justify-center gap-1.5"><AlertTriangle className="w-4 h-4" /> {error}</p>
+          <div className="flex gap-2">
+            <button onClick={onBack} className="btn-ghost flex-1 text-sm">Back</button>
+            <button onClick={() => setAttempt((n) => n + 1)} className="btn-cyan flex-1 text-sm">Try again</button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-cards border border-stone-border bg-white p-5 flex items-center gap-3">
+          <Loader2 className="w-5 h-5 animate-spin text-cyan-signal" />
+          <p className="text-sm text-ink-black">Opening the secure {connector.name} sign-in…</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Backend mode: the person's real connection — account, freshness, counts, actions. */
+function LiveManage({
+  connector,
+  live,
+  onReconnect,
+  onClose,
+}: {
+  connector: Connector;
+  live: LiveConnector;
+  onReconnect: () => void;
+  onClose: () => void;
+}) {
+  const loadLive = useConnectorsStore((s) => s.loadLive);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState<'sync' | 'disconnect' | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const mine = live.mine;
+  const pending = live.status === 'pending';
+
+  const run = async (kind: 'sync' | 'disconnect') => {
+    setBusy(kind);
+    setNote(null);
+    try {
+      if (kind === 'sync') {
+        setNote(await syncNow(connector.id));
+      } else {
+        await disconnectLive(connector.id);
+        await loadLive();
+        onClose();
+        return;
+      }
+      await loadLive();
+    } catch (err) {
+      setNote(apiErrorMessage(err, kind === 'sync' ? 'Could not start a sync.' : 'Could not disconnect.'));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="space-y-5 py-2">
+      <div className="flex items-center gap-3">
+        <ConnectorLogo connector={connector} size="lg" />
+        <div className="min-w-0">
+          <h2 className="font-display text-[22px] text-ink-black leading-tight">{connector.name}</h2>
+          {pending ? (
+            <p className="text-xs text-warm-gray flex items-center gap-1.5 mt-0.5"><Loader2 className="w-3 h-3 animate-spin" /> Waiting for the sign-in to finish</p>
+          ) : (
+            <p className="text-xs text-emerald-700 flex items-center gap-1.5 mt-0.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              {mine?.syncing
+                ? 'Syncing now'
+                : mine?.lastSyncedAt
+                  ? `Connected · last synced ${since(mine.lastSyncedAt)}`
+                  : 'Connected · first sync queued'}
+              {mine?.accountLabel ? ` · ${mine.accountLabel}` : ''}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="rounded-cards border border-stone-border bg-white p-4 grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-[11px] text-warm-gray">Synced</p>
+          <p className="font-display text-2xl text-ink-black tabular-nums">{fmt(mine?.itemCount ?? 0)}</p>
+          <p className="text-[11px] text-ash-gray">{live.syncUnit}</p>
+        </div>
+        <div>
+          <p className="text-[11px] text-warm-gray">Includes</p>
+          <p className="text-sm text-ink-black mt-1">{connector.syncs.join(', ')}</p>
+        </div>
+      </div>
+      {mine?.lastSyncError && (
+        <p className="text-xs text-amber-900 rounded-cards border border-amber-200 bg-amber-50 px-3.5 py-2.5 flex gap-2">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {mine.lastSyncError}
+        </p>
+      )}
+      {note && <p className="text-xs text-warm-gray text-center">{note}</p>}
+      <div className="flex gap-2">
+        {pending ? (
+          <button onClick={onReconnect} className="btn-ghost flex-1 text-sm">Restart sign-in</button>
+        ) : (
+          <button
+            onClick={() => run('sync')}
+            disabled={busy !== null || mine?.syncing}
+            className="btn-ghost flex-1 text-sm inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            <RefreshCw className={cn('w-4 h-4', (busy === 'sync' || mine?.syncing) && 'animate-spin')} /> Sync now
+          </button>
+        )}
+        <button
+          onClick={() => (confirming ? run('disconnect') : setConfirming(true))}
+          disabled={busy !== null}
+          className={cn(
+            'flex-1 text-sm rounded-full px-4 py-2 inline-flex items-center justify-center gap-1.5 border transition disabled:opacity-50',
+            confirming ? 'bg-rose-50 border-rose-200 text-rose-700' : 'border-stone-border text-warm-gray hover:text-rose-700',
+          )}
+        >
+          {busy === 'disconnect' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unplug className="w-4 h-4" />}
+          {confirming ? 'Disconnect and remove its items' : 'Disconnect'}
         </button>
       </div>
     </div>

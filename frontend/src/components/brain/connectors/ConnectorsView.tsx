@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Plus, Search, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, Loader2, Plus, Search, X } from 'lucide-react';
 import { CATEGORY_LABELS, CONNECTORS, type Connector, type ConnectorCategory } from '@/demo/connectors';
-import { useConnectorsStore } from '@/stores/useConnectorsStore';
+import { LIVE_CONNECTORS } from '@/lib/connectorsApi';
+import { galleryState, useConnectorsStore, type GalleryState } from '@/stores/useConnectorsStore';
 import { cn } from '@/lib/utils';
 import { ConnectModal } from './ConnectModal';
 import { ConnectorLogo } from './ConnectorLogo';
@@ -13,17 +14,43 @@ type Filter = 'all' | 'connected' | ConnectorCategory;
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as ConnectorCategory[];
 
 export function ConnectorsView() {
-  const status = useConnectorsStore((s) => s.status);
+  const demoStatus = useConnectorsStore((s) => s.status);
+  const live = useConnectorsStore((s) => s.live);
+  const liveError = useConnectorsStore((s) => s.liveError);
+  const loadLive = useConnectorsStore((s) => s.loadLive);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [open, setOpen] = useState<Connector | null>(null);
+  const [returned, setReturned] = useState<{ name: string; result: string } | null>(null);
 
-  // Deep links like ?category=meetings (from the Meetings page). Read after mount:
-  // useSearchParams would need a Suspense boundary that can stall hydration.
+  const status = useMemo(
+    () => Object.fromEntries(CONNECTORS.map((c) => [c.id, galleryState(c, demoStatus, live)])) as Record<string, GalleryState>,
+    [demoStatus, live],
+  );
+
+  // Deep links like ?category=meetings (from the Meetings page), and the OAuth return
+  // (?result=connected&connector=gmail). Read after mount: useSearchParams would need
+  // a Suspense boundary that can stall hydration.
   useEffect(() => {
-    const c = new URLSearchParams(window.location.search).get('category');
+    const params = new URLSearchParams(window.location.search);
+    const c = params.get('category');
     if (c && (c === 'connected' || c in CATEGORY_LABELS)) setFilter(c as Filter);
-  }, []);
+    const result = params.get('result');
+    if (result) {
+      const name = CONNECTORS.find((x) => x.id === params.get('connector'))?.name ?? 'The app';
+      setReturned({ name, result });
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    loadLive();
+  }, [loadLive]);
+
+  // While a first sync or a consent is in flight, keep the cards current.
+  const busy = LIVE_CONNECTORS && Object.values(live ?? {}).some((l) => l.mine?.syncing || l.status === 'pending');
+  useEffect(() => {
+    if (!busy) return;
+    const id = setInterval(loadLive, 4000);
+    return () => clearInterval(id);
+  }, [busy, loadLive]);
 
   const connectedCount = CONNECTORS.filter((c) => status[c.id] === 'connected').length;
 
@@ -56,6 +83,11 @@ export function ConnectorsView() {
           <Stat value="500+" label="via Composio" />
         </div>
       </div>
+
+      {returned && <ReturnBanner {...returned} onDismiss={() => setReturned(null)} />}
+      {LIVE_CONNECTORS && liveError && (
+        <p className="text-xs text-rose-700 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {liveError}</p>
+      )}
 
       <div className="flex flex-col gap-3">
         <label className="relative block max-w-md">
@@ -121,9 +153,36 @@ function Stat({ value, label, accent }: { value: number | string; label: string;
   );
 }
 
-function ConnectorCard({ connector: c, state, onOpen }: { connector: Connector; state: Connector['status']; onOpen: () => void }) {
+function ReturnBanner({ name, result, onDismiss }: { name: string; result: string; onDismiss: () => void }) {
+  const ok = result === 'connected';
+  const pending = result === 'pending';
+  const message = ok
+    ? `${name} is connected. The first sync is running; items appear in the brain as they land.`
+    : pending
+      ? `Finishing the ${name} sign-in…`
+      : result === 'expired'
+        ? 'That sign-in link expired. Start the connection again.'
+        : `${name} was not connected. You can try again.`;
+  return (
+    <div
+      role="status"
+      className={cn(
+        'rounded-cards border px-4 py-3 flex items-center gap-3 text-sm',
+        ok ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : pending ? 'bg-white border-stone-border text-ink-black' : 'bg-amber-50 border-amber-200 text-amber-900',
+      )}
+    >
+      {ok ? <Check className="w-4 h-4 shrink-0" /> : pending ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
+      <span className="flex-1">{message}</span>
+      <button onClick={onDismiss} aria-label="Dismiss" className="p-1 rounded-full hover:bg-black/5"><X className="w-3.5 h-3.5" /></button>
+    </div>
+  );
+}
+
+function ConnectorCard({ connector: c, state, onOpen }: { connector: Connector; state: GalleryState; onOpen: () => void }) {
   const connected = state === 'connected';
   const soon = state === 'coming_soon';
+  const reconnect = state === 'needs_reconnect';
+  const pending = state === 'pending';
   return (
     <div className="group stone-card p-4 flex flex-col gap-3 hover:shadow-preview hover:-translate-y-0.5 transition duration-200">
       <div className="flex items-start gap-3">
@@ -137,14 +196,28 @@ function ConnectorCard({ connector: c, state, onOpen }: { connector: Connector; 
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Connected
           </span>
         )}
+        {reconnect && (
+          <span className="text-[11px] px-2 py-0.5 rounded-full border bg-amber-50 border-amber-200 text-amber-800 inline-flex items-center gap-1 shrink-0">
+            <AlertTriangle className="w-3 h-3" /> Needs attention
+          </span>
+        )}
+        {pending && (
+          <span className="text-[11px] px-2 py-0.5 rounded-full border border-stone-border text-warm-gray inline-flex items-center gap-1 shrink-0">
+            <Loader2 className="w-3 h-3 animate-spin" /> Finishing
+          </span>
+        )}
       </div>
       <p className="text-xs text-warm-gray leading-relaxed line-clamp-2 min-h-[2.5rem]">{c.description}</p>
       <div className="mt-auto flex items-center justify-between gap-2">
         <span className="text-[11px] text-ash-gray truncate">{c.syncs.join(' · ')}</span>
         {soon ? (
           <span className="text-xs text-ash-gray px-3 py-1.5 shrink-0">Coming soon</span>
-        ) : connected ? (
+        ) : connected || pending ? (
           <button onClick={onOpen} className="btn-ghost text-xs px-3 py-1.5 shrink-0">Manage</button>
+        ) : reconnect ? (
+          <button onClick={onOpen} className="btn-cyan text-xs px-3 py-1.5 shrink-0 inline-flex items-center gap-1">
+            Reconnect <ArrowRight className="w-3 h-3" />
+          </button>
         ) : (
           <button onClick={onOpen} className="btn-cyan text-xs px-3 py-1.5 shrink-0 inline-flex items-center gap-1">
             Connect <ArrowRight className="w-3 h-3" />
