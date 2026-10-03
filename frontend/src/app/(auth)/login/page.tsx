@@ -9,7 +9,6 @@ import { ArrowRight } from 'lucide-react';
 import { BrandMark } from '@/components/ui';
 import { DemoLogin } from '@/components/auth';
 import { AUTH_MODE } from '@/lib/authMode';
-import { isMemberRole } from '@/types';
 
 /** The original FastAPI login, used when NEXT_PUBLIC_AUTH_MODE=backend. Unchanged. */
 function BackendLogin() {
@@ -23,12 +22,10 @@ function BackendLogin() {
     e.preventDefault();
     setError('');
     try {
-      const user = await login(email, password);
-      if (isMemberRole(user.role)) {
-        router.push('/me');
-      } else {
-        router.push('/approvals');
-      }
+      await login(email, password);
+      // Back to the /brain page that sent us here, or its home.
+      const next = new URLSearchParams(window.location.search).get('next');
+      router.push(next && next.startsWith('/brain') ? next : '/brain');
     } catch (err) {
       setError(apiErrorMessage(err, 'Invalid credentials or network connection error.'));
     }

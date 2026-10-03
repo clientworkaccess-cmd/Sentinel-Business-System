@@ -1,5 +1,5 @@
 /**
- * Arcline Technologies — the hard-coded demo company.
+ * Barq Digital — the hard-coded demo company.
  *
  * Fictional: every person, client and figure here is invented. The story threads
  * the demo leans on (keep them consistent if you edit):
@@ -13,7 +13,7 @@
  */
 import type { BrainItem, Department, Org, Person, Role, Team } from './types';
 
-const DOMAIN = 'arcline.pk';
+const DOMAIN = 'barqdigitalai.com';
 
 function initialsOf(name: string): string {
   const words = name.split(' ');
@@ -166,7 +166,7 @@ const DEPARTMENT_SPECS: DepartmentSpec[] = [
     id: 'growth',
     name: 'Sales & Growth',
     hue: 32,
-    description: 'New business, renewals and the Arcline brand.',
+    description: 'New business, renewals and the Barq Digital brand.',
     head: ['Omar Farooq', 'Head of Growth'],
     teams: [
       {
@@ -222,7 +222,7 @@ const DEPARTMENT_SPECS: DepartmentSpec[] = [
 
 // The three demo sign-ins (#25) are Alyan's team, by his request: Owner Saif,
 // Admin Saim (Engineering), Member Alyan (Mobile). Everyone else is fictional.
-const owner = person('Syed Muhammad Saif', 'Founder & CEO', 'owner', { shortName: 'Saif', email: 'saif@arcline.pk' });
+const owner = person('Syed Muhammad Saif', 'Founder & CEO', 'owner', { shortName: 'Saif', email: 'saif@barqdigitalai.com' });
 
 const people: Person[] = [owner];
 const departments: Department[] = [];
@@ -694,8 +694,8 @@ for (const d of departments) {
 }
 
 export const ORG: Org = {
-  id: 'arcline',
-  name: 'Arcline Technologies',
+  id: 'barq-digital',
+  name: 'Barq Digital',
   tagline: 'Software house · Lahore & Dubai',
   city: 'Lahore',
   ownerId: owner.id,

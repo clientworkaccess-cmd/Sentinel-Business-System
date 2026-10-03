@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useSessionStore } from '../stores/useSessionStore';
 import { AUTH_MODE } from '../lib/authMode';
-import { isMemberRole } from '../types';
 
 export default function Home() {
   const router = useRouter();
@@ -20,16 +19,9 @@ export default function Home() {
         .then(() => router.replace(useSessionStore.getState().session ? '/brain' : '/login'));
       return;
     }
+    // Backend mode: /brain is the app for every role; it reads the real API.
     fetchCurrentUser().then(() => {
-      if (useAuthStore.getState().isAuthenticated) {
-        if (isMemberRole(useAuthStore.getState().user?.role)) {
-          router.replace('/me');
-        } else {
-          router.replace('/approvals');
-        }
-      } else {
-        router.replace('/login');
-      }
+      router.replace(useAuthStore.getState().isAuthenticated ? '/brain' : '/login');
     });
   }, [router, fetchCurrentUser]);
 

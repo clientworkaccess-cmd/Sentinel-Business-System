@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.26.0] - 2026-10-03
+
+### Added
+- /brain with the backend login now has the old dashboard's features against the real API (Alyan): Meetings takes a recording, an uploaded file or pasted text (`/meetings/audio`, `/meetings/text`) and lists real meetings in the same layout; new Approvals page (task approvals with edit/reject/approve-all, plus outbound messages with send/edit/reject/retry); new Settings page (Sentinel config and team members, logins, bulk add). Approvals shows for Owners and Admins, Settings for Owners; both are hidden in demo mode.
+- Backend-mode sign-in now lands on /brain instead of the legacy dashboard. Watch out: approval edits can't clear an owner or change status, and logins can only be created as Member or Admin (backend rules).
+
+### Changed
+- The demo company is Barq Digital (barqdigitalai.com emails) instead of Arcline Technologies. Connectors no longer mention Composio anywhere in the UI, and the gallery uses Alyan's trimmed list from main.
+
 ## [0.25.0] - 2026-10-03
 
 ### Changed

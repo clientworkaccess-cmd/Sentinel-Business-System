@@ -207,7 +207,22 @@ export function useRecorder() {
     }
   }, [cleanup]);
 
-  return { state, levels, seconds, start, stop, cancel };
+  /** Stop and hand back the raw audio, without transcribing (the backend does it). */
+  const stopRaw = useCallback(async (): Promise<Blob | null> => {
+    const mr = media.current;
+    if (!mr) return null;
+    const stopped = new Promise<void>((resolve) => (mr.onstop = () => resolve()));
+    mr.stop();
+    media.current = null;
+    backup.current?.stop();
+    await stopped;
+    cleanup();
+    setState('idle');
+    const blob = new Blob(chunks.current, { type: mr.mimeType || 'audio/webm' });
+    return blob.size ? blob : null;
+  }, [cleanup]);
+
+  return { state, levels, seconds, start, stop, stopRaw, cancel };
 }
 
 /* ── Spoken replies ────────────────────────────────────────────────────── */

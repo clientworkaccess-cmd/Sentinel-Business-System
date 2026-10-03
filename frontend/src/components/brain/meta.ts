@@ -25,6 +25,9 @@ export const STATUS_META: Record<ItemStatus, { label: string; className: string 
 
 /** Display names for connector ids that appear as item sources in the demo data. */
 export const SOURCE_LABELS: Record<string, string> = {
+  recording: 'Recording',
+  upload: 'Uploaded audio',
+  transcript: 'Pasted transcript',
   gmail: 'Gmail',
   google_docs: 'Google Docs',
   google_drive: 'Google Drive',

@@ -182,7 +182,7 @@ function Permissions({
       </div>
 
       {unavailable && (
-        <p className="text-xs text-warm-gray text-center">Live connections aren&apos;t switched on for this server yet. Ask your admin to add the Composio key.</p>
+        <p className="text-xs text-warm-gray text-center">Live connections aren&apos;t switched on for this server yet.</p>
       )}
       <div className="flex gap-2">
         <button onClick={onCancel} className="btn-ghost flex-1 text-sm">Cancel</button>
@@ -196,7 +196,7 @@ function Permissions({
       </div>
       {live && (
         <p className="text-[11px] text-ash-gray text-center flex items-center justify-center gap-1">
-          <Lock className="w-3 h-3" /> Sign-in is handled by Composio. Sentinel never sees or stores your password or tokens.
+          <Lock className="w-3 h-3" /> Sentinel never sees or stores your password or tokens.
         </p>
       )}
     </div>
