@@ -17,10 +17,15 @@ interface BrainChatState {
   /** Ask a question as `viewer`, scoped to `scope`. Resolves with the final answer. */
   ask: (question: string, viewer: Viewer, scope: Scope) => Promise<BrainMessage | null>;
   reset: () => void;
+  /** One per conversation, so the agent (n8n) can keep memory. New on reset. */
+  sessionId: string;
 }
 
 let seq = 0;
 const id = () => `m${Date.now().toString(36)}${(seq++).toString(36)}`;
+/** Unique across tabs and reloads, unlike message ids. */
+const sessionUid = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `s${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -35,8 +40,9 @@ export const useBrainChatStore = create<BrainChatState>((set, get) => {
   return {
     messages: [],
     busy: false,
+    sessionId: sessionUid(),
 
-    reset: () => set({ messages: [], busy: false }),
+    reset: () => set({ messages: [], busy: false, sessionId: sessionUid() }),
 
     ask: async (question, viewer, scope) => {
       const text = question.trim();
@@ -56,6 +62,7 @@ export const useBrainChatStore = create<BrainChatState>((set, get) => {
             messages: [...history, user].map((m) => ({ role: m.role, content: m.content })),
             viewer,
             scope,
+            sessionId: get().sessionId,
           }),
         });
         if (!res.ok || !res.body) throw new Error(String(res.status));

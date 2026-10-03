@@ -25,6 +25,8 @@ export function ChatView() {
   const router = useRouter();
   const [draft, setDraft] = useState('');
   const [voiceReplies, setVoiceReplies] = useState(false);
+  // A question asked out loud gets its answer spoken, even with voice replies off.
+  const [voiceTurn, setVoiceTurn] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [openItem, setOpenItem] = useState<BrainItem | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -61,13 +63,15 @@ export function ChatView() {
       setDraft('');
       setNotice(null);
       stopSpeaking();
+      const spoken = voiceTurn;
+      setVoiceTurn(false);
       const answer = await ask(text, viewer, scope);
-      if (answer && voiceReplies) {
+      if (answer && (voiceReplies || spoken)) {
         setSpeakingId(answer.id);
         speakText(answer.content, () => setSpeakingId(null));
       }
     },
-    [ask, busy, dictation, scope, viewer, voiceReplies],
+    [ask, busy, dictation, scope, viewer, voiceReplies, voiceTurn],
   );
 
   // "Ask Sentinel about this" and the overview's ask box arrive as ?q=. Read after
@@ -98,6 +102,7 @@ export function ChatView() {
     if (!text) return setNotice("I didn't catch that. Try again, a little closer to the mic.");
     // Editable before sending, so a misheard word can be fixed.
     setDraft(text);
+    setVoiceTurn(true);
     input.current?.focus();
   };
 
