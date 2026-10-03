@@ -243,6 +243,11 @@ class ComposioGateway:
                 # include quota errors, which are told apart by their reason.
                 if status == 403 and _is_quota(response.data):
                     status = 429
+                elif attempt == 1:
+                    # Often an access token that expired mid-sync: one more try lets
+                    # Composio refresh it. Found in a live Drive sync.
+                    time.sleep(1.0)
+                    continue
                 else:
                     raise ProviderAuthError("The provider no longer accepts this connection. Reconnect it.")
             if status in (404, 410):

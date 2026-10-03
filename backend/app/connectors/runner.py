@@ -125,10 +125,16 @@ def sync_connection(connection_id: uuid.UUID) -> SyncOutcome:
             connection.last_sync_error = None
         except ProviderAuthError as exc:
             db.rollback()
-            connection.status = ConnectionStatus.EXPIRED
-            connection.status_reason = str(exc)
-            connection.last_sync_error = str(exc)
-            outcome.error = str(exc)
+            # A refused call is not proof the grant is gone (a token can expire
+            # mid-sync). Only Composio's own view of the account decides expiry;
+            # if it is still ACTIVE, this run failed and the next one retries.
+            if _account_alive(gateway, connection):
+                connection.last_sync_error = "The provider briefly refused access. Sync will retry."
+            else:
+                connection.status = ConnectionStatus.EXPIRED
+                connection.status_reason = str(exc)
+                connection.last_sync_error = str(exc)
+            outcome.error = connection.last_sync_error
         except ProviderRateLimited as exc:
             db.rollback()
             connection.last_sync_error = str(exc)
@@ -157,6 +163,14 @@ def sync_connection(connection_id: uuid.UUID) -> SyncOutcome:
     logger.info("Synced %s connection %s: %d written, %d deleted%s", connector.id, connection_id,
                 outcome.written, outcome.deleted, f", error: {outcome.error}" if outcome.error else "")
     return outcome
+
+
+def _account_alive(gateway, connection: Connection) -> bool:
+    """Whether Composio still holds a live grant. Unknown counts as not alive."""
+    try:
+        return gateway.account(connection.composio_account_id).status == ACTIVE
+    except ProviderError:
+        return False
 
 
 def _check_account(gateway, connection: Connection) -> None:

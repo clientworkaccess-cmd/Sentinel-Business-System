@@ -531,7 +531,13 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         fake.fail[conn.composio_account_id] = ProviderAuthError("Reconnect it.")
         sync_connection(conn.id)
         db.refresh(conn)
-        check("grant revoked: marked expired", conn.status is ConnectionStatus.EXPIRED, conn.status)
+        check("a refused call while Composio still says ACTIVE is retried, not expired",
+              conn.status is ConnectionStatus.ACTIVE and "retry" in (conn.last_sync_error or ""),
+              (conn.status, conn.last_sync_error))
+        fake.accounts[conn.composio_account_id]["status"] = "EXPIRED"
+        sync_connection(conn.id)
+        db.refresh(conn)
+        check("grant revoked at Composio: marked expired", conn.status is ConnectionStatus.EXPIRED, conn.status)
         check("the gallery asks for a reconnect", mine(ah, "gmail")["status"] == "needs_reconnect")
         check("sync now is refused until then", client.post(f"{C}/gmail/sync", headers=ah).status_code == 409)
         check("expired connections are never scheduled", conn.id not in due_connections())
@@ -594,9 +600,11 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
 
         gw.time.sleep = lambda *_: None  # no real backoff in a test
         check("200 returns the body", gateway_with(Resp(200, {"ok": 1})).get("ca", "u") == {"ok": 1})
+        check("a single 401 is retried once (token refresh) and then succeeds",
+              gateway_with(Resp(401), Resp(200, {"ok": 3})).get("ca", "u") == {"ok": 3})
         for status_code, expected in ((401, ProviderAuthError), (410, ProviderNotFound)):
             try:
-                gateway_with(Resp(status_code)).get("ca", "u")
+                gateway_with(Resp(status_code), Resp(status_code)).get("ca", "u")
                 check(f"{status_code} raises {expected.__name__}", False)
             except expected:
                 check(f"{status_code} raises {expected.__name__}", True)

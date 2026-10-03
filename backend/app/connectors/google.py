@@ -20,7 +20,7 @@ from email.utils import getaddresses, parsedate_to_datetime
 from typing import Any
 
 from app.connectors.base import Connector, SourceDocument, SyncBatch, SyncContext, clip
-from app.connectors.gateway import ProviderNotFound
+from app.connectors.gateway import ProviderAuthError, ProviderNotFound
 from app.models.enums import BrainItemKind
 
 GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -364,7 +364,10 @@ class GoogleDriveConnector(Connector):
             try:
                 text = ctx.gateway.get_text(ctx.account_id, f"{DRIVE}/files/{item['id']}/export",
                                             {"mimeType": export_as})
-            except ProviderNotFound:
+            except (ProviderNotFound, ProviderAuthError):
+                # This one file can't be exported (owner disabled it, too large,
+                # gone). Index it by metadata; a real revocation still surfaces on
+                # the next list call.
                 text = ""
         owners = [o["emailAddress"].lower() for o in item.get("owners", []) if o.get("emailAddress")]
         editor = (item.get("lastModifyingUser") or {}).get("emailAddress")
