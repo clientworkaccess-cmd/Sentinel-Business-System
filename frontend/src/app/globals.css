@@ -91,6 +91,9 @@ body {
 .dark .bg-sky-50 { background-color: #0c2a3f; }
 .dark .bg-cyan-50 { background-color: #0b2c3a; }
 .dark .bg-stone-100 { background-color: #292524; }
+.dark .bg-orange-50 { background-color: #3b1d08; }
+.dark .border-orange-200 { border-color: #7c2d12; }
+.dark .text-orange-700 { color: #fdba74; }
 
 .dark .border-emerald-200 { border-color: #14532d; }
 .dark .border-rose-200 { border-color: #7f1d1d; }

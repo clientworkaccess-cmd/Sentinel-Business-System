@@ -10,6 +10,7 @@ import type { BrainItem, ItemStatus, Scope } from '@/demo/types';
 import { useBrainStore } from '@/stores/useBrainStore';
 import { Avatar, AvatarStack, Card, ItemRow, SectionTitle } from './atoms';
 import { ItemDrawer } from './ItemDrawer';
+import { AiStrip } from './ai/AiStrip';
 import { KIND_META, hueColor, sourceLabel } from './meta';
 
 /** How urgently a status asks for a human. Lower sorts first. */
@@ -42,6 +43,7 @@ export function Overview() {
       <Greeting scope={scope} />
       <AskCard />
       <KpiRow items={items} peopleCount={people.length} isPersonal={scope.level === 'member'} />
+      <AiStrip />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <Card className="lg:col-span-3 p-5 min-w-0">

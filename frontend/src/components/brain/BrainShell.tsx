@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  ArrowUpRight, ChevronRight, ClipboardCheck, LayoutDashboard, LogOut, Menu, MessageSquareText, Mic, Moon, Network, Plug,
+  ArrowUpRight, BrainCircuit, ChevronRight, ClipboardCheck, LayoutDashboard, LogOut, Menu, MessageSquareText, Mic, Moon, Network, Plug,
   Settings, Sparkles, Sun, X,
 } from 'lucide-react';
 import { BrandLockup } from '@/components/ui';
@@ -26,6 +26,7 @@ const NAV: { name: string; href: string; icon: React.ElementType; live?: 'review
   { name: 'Ask Sentinel', href: '/brain/chat', icon: MessageSquareText },
   { name: 'Meetings & notes', href: '/brain/meetings', icon: Mic },
   { name: 'Connectors', href: '/brain/connectors', icon: Plug },
+  { name: 'AI & Agents', href: '/brain/ai', icon: BrainCircuit },
   // Backed by the real API, so only with the backend login.
   { name: 'Approvals', href: '/brain/approvals', icon: ClipboardCheck, live: 'reviewer' },
   { name: 'Settings', href: '/brain/settings', icon: Settings, live: 'owner' },
