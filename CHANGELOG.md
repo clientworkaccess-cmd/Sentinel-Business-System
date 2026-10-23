@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.27.1] - 2026-10-23
+
+### Changed
+- AI & Agents rewritten for clarity (Saim's review): one short line per header, shorter demo data, and no tab or decorative icons. The phone view, starter packs, price table and the per-event Details toggles are gone. Tabs are renamed to Connect AI and App access, and the Overview tile is one line.
+- Severity and status chips now use one neutral style: a coloured dot plus a calm label. Severity reads Critical / High / Medium / Low / Safe, and results read Allowed / Blocked / Partly hidden.
+- Connect now shows what Sentinel actually sees: the AI's search and the sources it returned, not the chat answer.
+- Each rule now shows who it covers and which AI it applies to. A ChatGPT-only rule is added as an example.
+
+## [0.27.0] - 2026-10-23
+
+### Added
+- New **AI & Agents** section in /brain (`/brain/ai`, in the sidebar and as an Overview tile), for the final round's "company memory for AI" story. It uses demo data and works without the backend. Tabs:
+  - **Connect your AI**: add Sentinel to Claude, ChatGPT, Cursor, Codex or Gemini over MCP. Includes the setup steps, the tools Sentinel exposes, and "What your AI can see", which follows the Owner/Admin/Member switcher.
+  - **Approvals**: AI-drafted client emails, each with the rule that triggered it and the reason from memory. Shows the waiting time, escalation to the backup approver, a "prompts saved" count, a phone view and a Roman Urdu toggle.
+  - **Rules**: written in English or Roman Urdu, showing how each was understood, plus the approval policy.
+  - **Access log**: which AI read what, for whom; what was held back.
+  - **Keys to your business**: AI apps with access to company Gmail/Drive/Slack, with Remove access.
+  - **AI X-ray**: what a connector can reach, hidden instructions in tool descriptions, changes since approval.
+  - **Agent activity**: Claude Code/Codex sessions on this laptop, with labelled folders. Read-only.
+  - **Model & usage**: bring your own model (Qwen default), plus usage and cost.
+- The copy follows the research rules: plain sentences, results as Allowed/Blocked/Asked you, severity words first (standard scale in the tooltip), and technical detail behind "Details". Dark-mode tints added for orange badges.
+
 ## [0.26.0] - 2026-10-03
 
 ### Added
