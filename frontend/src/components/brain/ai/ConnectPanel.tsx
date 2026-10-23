@@ -26,7 +26,7 @@ export function ConnectPanel() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="AIs connected" value={connected.length} hint={`of ${AI_CLIENTS.length} supported`} />
+        <Stat label="AI tools connected" value={connected.length} hint={`of ${AI_CLIENTS.length} supported`} />
         <Stat label="People using it" value={people} />
         <Stat label="Lookups today" value={lookups} />
         <Stat label="Setup" value="1 link" hint="No install, no IT rollout" />
