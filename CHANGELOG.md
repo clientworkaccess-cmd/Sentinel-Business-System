@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.1] - 2026-10-23
+
+### Changed
+- AI & Agents rewritten for clarity (Saim's review): one short line per header, shorter demo data, and no tab or decorative icons. The phone view, starter packs, price table and the per-event Details toggles are gone. Tabs are renamed to Connect AI and App access, and the Overview tile is one line.
+- Severity and status chips now use one neutral style: a coloured dot plus a calm label. Severity reads Critical / High / Medium / Low / Safe, and results read Allowed / Blocked / Partly hidden.
+- Connect now shows what Sentinel actually sees: the AI's search and the sources it returned, not the chat answer.
+- Each rule now shows who it covers and which AI it applies to. A ChatGPT-only rule is added as an example.
+
 ## [0.27.0] - 2026-10-23
 
 ### Added

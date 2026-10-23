@@ -1,9 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState } from 'react';
-import { ChevronDown, HardDrive } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { getPerson } from '@/demo/org';
-import { RESULT_META, RISK_META, getAi, type AiId, type Result, type Risk } from '@/demo/ai';
+import { RESULT_META, RISK_META, getAi, type AiId, type Result, type Risk, type Tone } from '@/demo/ai';
 import { cn } from '@/lib/utils';
 import { Avatar } from '../atoms';
 
@@ -38,29 +38,35 @@ export function LangToggle() {
   );
 }
 
-/* ── Badges ─────────────────────────────────────────────────────────────── */
+/* ── Chips ──────────────────────────────────────────────────────────────── */
 
-/** Severity in words first; the standard scale sits in the tooltip for experts. */
-export function RiskBadge({ risk, className }: { risk: Risk; className?: string }) {
-  const m = RISK_META[risk];
+const DOT: Record<Tone, string> = {
+  red: 'bg-rose-500',
+  orange: 'bg-orange-500',
+  amber: 'bg-amber-500',
+  green: 'bg-emerald-500',
+  blue: 'bg-sky-500',
+  gray: 'bg-stone-400',
+};
+
+/** Neutral status chip: a coloured dot carries the meaning, the label stays calm. */
+export function Chip({ tone, children, className }: { tone: Tone; children: React.ReactNode; className?: string }) {
   return (
-    <span title={`Severity: ${m.standard}`} className={cn('inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium whitespace-nowrap', m.className, className)}>
-      {m.label}
+    <span className={cn('inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-stone-border bg-surface text-[11px] font-medium text-ink-black/80 whitespace-nowrap', className)}>
+      <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', DOT[tone])} aria-hidden="true" />
+      {children}
     </span>
   );
+}
+
+export function RiskBadge({ risk, className }: { risk: Risk; className?: string }) {
+  const m = RISK_META[risk];
+  return <Chip tone={m.tone} className={className}>{m.label}</Chip>;
 }
 
 export function ResultBadge({ result }: { result: Result }) {
   const m = RESULT_META[result];
-  return <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium whitespace-nowrap', m.className)}>{m.label}</span>;
-}
-
-export function LocalBadge({ text = 'Runs on this laptop. Nothing uploaded.' }: { text?: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] font-medium">
-      <HardDrive className="w-3 h-3" /> {text}
-    </span>
-  );
+  return <Chip tone={m.tone}>{m.label}</Chip>;
 }
 
 /** A monogram tile for an AI or app (no third-party logos are bundled). */
@@ -102,12 +108,12 @@ export function Details({ children, label = 'Details' }: { children: React.React
   );
 }
 
-export function PanelHeader({ title, hint, action }: { title: string; hint: string; action?: React.ReactNode }) {
+export function PanelHeader({ title, hint, action }: { title: string; hint?: string; action?: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
         <h2 className="font-display text-xl text-ink-black">{title}</h2>
-        <p className="text-sm text-warm-gray mt-0.5 max-w-2xl">{hint}</p>
+        {hint && <p className="text-sm text-warm-gray mt-0.5 max-w-2xl">{hint}</p>}
       </div>
       {action}
     </div>
