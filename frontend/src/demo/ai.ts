@@ -227,7 +227,7 @@ export const RULES: Rule[] = [
 export const RULE_EXAMPLES: { input: string; effect: Effect; scope: RuleScope }[] = [
   { input: 'Koi AI client ko bina meri approval email na bheje', effect: 'ask', scope: { people: 'Everyone', ai: 'Any AI', action: 'Send', target: 'Client email' } },
   { input: 'Interns ka AI sirf apne tasks dekh sake', effect: 'allow', scope: { people: 'Interns', ai: 'Any AI', action: 'Read', target: 'Only their own tasks' } },
-  { input: 'Never let Cursor read the Finance folder', effect: 'never', scope: { people: 'Everyone', ai: 'Cursor', action: 'Read', target: 'Finance folder' } },
+  { input: 'Never let Cursor see finance documents', effect: 'never', scope: { people: 'Everyone', ai: 'Cursor', action: 'Read', target: 'Finance documents' } },
 ];
 
 export const APPROVAL_SETTINGS = {
