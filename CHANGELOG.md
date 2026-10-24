@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.27.2] - 2026-10-24
+
+### Changed
+- All demo data is now about software houses only:
+  - The restaurant client (Saffron & Co., with its online ordering, kitchen display and branch UAT) is now **Orbit HR**, an HR software startup. Its employee portal and UAT ask for bulk leave approval.
+  - **Tidewater Retail** is now Tidewater Systems, a SaaS startup.
+- New demo story on vendors and spend:
+  - September cloud and tools spend (PKR 3.4M, split by cloud hosting, subscriptions and AI APIs).
+  - An AWS bill up 18%, with the cause.
+  - Jira and Figma licence renewals.
+  - A laptop order for new hires from an IT supplier.
+  - The decision to move client AI features to Qwen on Alibaba Cloud.
+  - A vendor contracts list.
+- Finance and Ops background items now read like a software house: cloud invoices, GitHub seats, client invoicing.
+- The Team settings bulk-add placeholder now uses demo staff names.
+
 ## [0.27.1] - 2026-10-23
 
 ### Changed

@@ -403,7 +403,7 @@ function BulkForm({ onCancel, onImported }: { onCancel: () => void; onImported: 
             rows={5}
             value={text}
             onChange={(e) => { setText(e.target.value); setResult(null); }}
-            placeholder={'Sarah Jenkins, Product Lead, Alex Rivers\nMark Chen, Backend Engineer, Sarah Jenkins'}
+            placeholder={'Hira Javed, Backend Engineer, Usman Tariq\nNoor Fatima, Flutter Engineer, Zain Abbas'}
             className={cn(textareaClass, 'font-mono text-xs')}
           />
         </Field>

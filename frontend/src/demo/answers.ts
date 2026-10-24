@@ -100,7 +100,7 @@ const SCRIPTED: Record<Role, Scripted[]> = {
 1. **Indus Freight**: the renewal is due **Oct 31** (PKR 9.6M/yr). They're unhappy with 2-day support response times and asked for 10% off. Invoice **INV-2291 (PKR 4.2M)** is 45 days overdue; their AP says it's "with management" until the renewal is settled. Omar and Mahnoor propose **5% plus a 4-hour SLA**, and that counter-offer is **waiting on your approval**.
 2. **Kestrel Health**: the app v2 launch slipped **Oct 13 → Oct 20**. Payment-SDK certification is blocked on 3-D Secure errors in the PSP sandbox. Asad has drafted the revised-timeline email to Dr. Nadia; it's also **waiting on your approval**.
 
-Everyone else is on track. Lumen Pay's security questionnaire is due Oct 8, Saffron's UAT runs Oct 7–9, Tidewater is in discovery, and Crescent phase 1 is delivered with an upsell pending.`,
+Everyone else is on track. Lumen Pay's security questionnaire is due Oct 8, Orbit HR's UAT runs Oct 7–9, Tidewater is in discovery, and Crescent phase 1 is delivered with an upsell pending.`,
       sources: ['client-indus', 'dec-indus-discount', 'task-indus-invoice', 'client-kestrel', 'task-kestrel-sdk', 'task-kestrel-email'],
     },
     {
@@ -174,7 +174,7 @@ Relief is coming: **3 backend roles** opened Sep 30, with December start dates. 
 1. **Kestrel app v2 launch**: moved **Oct 13 → Oct 20**.
 2. **Payment-SDK certification**: due **Oct 8**, currently **blocked** on the PSP sandbox.
 
-On track: the AWS cutover runbook (Oct 15), Saffron UAT support (Oct 7–9), and the Indus portal tracking work.`,
+On track: the AWS cutover runbook (Oct 15), Orbit HR UAT support (Oct 7–9), and the Indus portal tracking work.`,
       sources: ['proj-kestrel-v2', 'task-kestrel-sdk', 'dec-kestrel-launch', 'task-aws-runbook'],
     },
   ],
