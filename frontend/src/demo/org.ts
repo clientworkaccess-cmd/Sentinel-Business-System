@@ -10,6 +10,8 @@
  *   3. Lumen Pay is a hot prospect — security questionnaire due Oct 8.
  *   4. Platform is migrating production to AWS Bahrain by Nov 15.
  *   5. Hiring: three backend roles just opened.
+ *   6. Cloud and tools spend: the September AWS bill is up 18%, Jira and Figma
+ *      licences renew Oct 15, and client AI features are moving to Qwen.
  */
 import type { BrainItem, Department, Org, Person, Role, Team } from './types';
 
@@ -277,14 +279,14 @@ const storyItems: BrainItem[] = [
     summary: 'Fintech prospect. Merchant dashboard pilot worth about PKR 12M. Proposal v3 sent; security questionnaire due Oct 8.',
   },
   {
-    id: 'client-saffron', kind: 'client', title: 'Saffron & Co.', status: 'on_track', external: true,
+    id: 'client-orbit', kind: 'client', title: 'Orbit HR', status: 'on_track', external: true,
     ownerIds: [P('Komal Rizvi'), P('Kamran Yousuf')], teamId: 'client-success', departmentId: 'delivery', source: 'hubspot',
-    summary: 'Restaurant chain, 22 branches. Online ordering web app; UAT with kitchen staff next week.',
+    summary: 'HR software startup in Dubai. We build their employee self-service web app. UAT with their HR team next week.',
   },
   {
-    id: 'client-tidewater', kind: 'client', title: 'Tidewater Retail', status: 'on_track', external: true,
+    id: 'client-tidewater', kind: 'client', title: 'Tidewater Systems', status: 'on_track', external: true,
     ownerIds: [P('Nida Pervaiz')], teamId: 'client-success', departmentId: 'delivery', source: 'hubspot',
-    summary: 'E-commerce replatform from Magento to a headless stack. Discovery phase.',
+    summary: 'SaaS startup in Austin. MVP build for their customer billing dashboard. Discovery phase.',
   },
   {
     id: 'client-crescent', kind: 'client', title: 'Crescent Mobility', status: 'done', external: true,
@@ -306,10 +308,10 @@ const storyItems: BrainItem[] = [
     summary: 'Live since March. Current work: real-time tracking updates and faster support triage.',
   },
   {
-    id: 'proj-saffron-ordering', kind: 'project', title: 'Saffron online ordering', status: 'on_track',
+    id: 'proj-orbit-portal', kind: 'project', title: 'Orbit employee portal', status: 'on_track',
     ownerIds: [P('Maryam Aslam'), P('Iqra Nadeem'), P('Komal Rizvi')], teamId: 'web', departmentId: 'engineering', source: 'linear',
-    relatedIds: ['client-saffron'],
-    summary: 'Ordering and kitchen display app. Feature-complete; UAT Oct 7–9.',
+    relatedIds: ['client-orbit'],
+    summary: 'Leave requests, payslips and approvals web app. Feature-complete; UAT Oct 7–9.',
   },
   {
     id: 'proj-aws-bahrain', kind: 'project', title: 'AWS Bahrain migration', status: 'on_track',
@@ -370,10 +372,10 @@ const storyItems: BrainItem[] = [
     summary: 'Cut onboarding from 6 screens to 3. Usability test showed elderly patients dropping at OTP step.',
   },
   {
-    id: 'mtg-saffron-uat-prep', kind: 'meeting', title: 'Saffron UAT prep', date: '2026-10-02',
+    id: 'mtg-orbit-uat-prep', kind: 'meeting', title: 'Orbit HR UAT prep', date: '2026-10-02',
     ownerIds: [P('Komal Rizvi'), P('Sadia Batool'), P('Maryam Aslam')], teamId: 'qa', departmentId: 'delivery', source: 'otter',
-    relatedIds: ['proj-saffron-ordering', 'task-saffron-uat', 'client-saffron'],
-    summary: 'UAT runs Oct 7–9 at the Gulberg and DHA branches. Kitchen display needs a large-font mode before staff test it.',
+    relatedIds: ['proj-orbit-portal', 'task-orbit-uat', 'client-orbit'],
+    summary: "UAT runs Oct 7–9 with Orbit's HR team. They need bulk approval for leave requests before they test.",
   },
   {
     id: 'mtg-crescent-qbr', kind: 'meeting', title: 'Crescent Mobility quarterly review', date: '2026-09-25', external: true,
@@ -454,9 +456,9 @@ const storyItems: BrainItem[] = [
     relatedIds: ['proj-hiring-q4'],
   },
   {
-    id: 'task-saffron-uat', kind: 'task', title: 'Run UAT with Saffron kitchen staff', date: '2026-10-07', status: 'on_track', external: true,
+    id: 'task-orbit-uat', kind: 'task', title: 'Run UAT with the Orbit HR team', date: '2026-10-07', status: 'on_track', external: true,
     ownerIds: [P('Sadia Batool'), P('Komal Rizvi')], teamId: 'qa', departmentId: 'delivery', source: 'clickup',
-    relatedIds: ['proj-saffron-ordering', 'client-saffron'],
+    relatedIds: ['proj-orbit-portal', 'client-orbit'],
   },
   {
     id: 'task-crescent-upsell', kind: 'task', title: 'Pitch Crescent phase 2 (driver app)', date: '2026-10-10', status: 'on_track', external: true,
@@ -467,6 +469,44 @@ const storyItems: BrainItem[] = [
     id: 'task-case-study', kind: 'task', title: 'Draft Crescent Mobility case study', date: '2026-10-09', status: 'on_track',
     ownerIds: [P('Raza Hamdani')], teamId: 'marketing', departmentId: 'growth', source: 'google_docs',
     relatedIds: ['client-crescent', 'proj-q4-campaign'],
+  },
+
+  // Vendors, tools and spend
+  {
+    id: 'doc-tools-spend', kind: 'document', title: 'September cloud & tools spend', date: '2026-10-01',
+    ownerIds: [P('Tariq Jameel'), P('Sundas Arif')], teamId: 'finance', departmentId: 'operations', source: 'google_drive',
+    relatedIds: ['task-aws-bill', 'task-licence-renewal', 'dec-qwen'],
+    summary: 'PKR 3.4M in total: cloud hosting 58%, software subscriptions 19%, AI APIs 17%, other 6%.',
+  },
+  {
+    id: 'task-aws-bill', kind: 'task', title: 'Review September AWS bill (USD 7,420)', date: '2026-10-06', status: 'at_risk',
+    ownerIds: [P('Ali Haider'), P('Tariq Jameel')], teamId: 'platform', departmentId: 'engineering', source: 'gmail',
+    relatedIds: ['proj-aws-bahrain', 'doc-tools-spend'],
+    summary: 'Up 18% on August. Most of the increase is a staging cluster left running after the migration test.',
+  },
+  {
+    id: 'task-licence-renewal', kind: 'task', title: 'Renew Jira and Figma licences', date: '2026-10-15', status: 'on_track',
+    ownerIds: [P('Rida Ashraf'), P('Tariq Jameel')], teamId: 'people', departmentId: 'operations', source: 'gmail',
+    relatedIds: ['doc-vendor-contracts', 'doc-tools-spend'],
+    summary: 'Jira: 48 seats, 5 unused, remove them before renewing. Figma: 12 seats. Both renew on Oct 15.',
+  },
+  {
+    id: 'task-laptops', kind: 'task', title: 'Order 3 laptops for new backend hires', date: '2026-10-20', status: 'on_track',
+    ownerIds: [P('Rida Ashraf')], teamId: 'people', departmentId: 'operations', source: 'gmail',
+    relatedIds: ['proj-hiring-q4'],
+    summary: 'Quote from TechZone Computers: 3 MacBook Pro 14", PKR 1.35M, delivery in 10 days. Budget approved by Fatima.',
+  },
+  {
+    id: 'dec-qwen', kind: 'decision', title: 'Move client AI features to Qwen on Alibaba Cloud', date: '2026-09-25',
+    ownerIds: [P('Saim'), P('Fatima Raza')], departmentId: 'engineering', source: 'slack',
+    relatedIds: ['doc-tools-spend', 'proj-kestrel-v2'],
+    summary: 'Lower cost per request for the same tasks, and it handles Urdu. New client builds use Qwen from November.',
+  },
+  {
+    id: 'doc-vendor-contracts', kind: 'document', title: 'Vendor contracts & renewals 2026', date: '2026-09-15',
+    ownerIds: [P('Fatima Raza'), P('Tariq Jameel')], departmentId: 'operations', source: 'google_drive',
+    relatedIds: ['task-licence-renewal'],
+    summary: 'AWS, Alibaba Cloud, GitHub, Jira, Figma, Slack and Google Workspace: cost, owner and renewal date for each.',
   },
 
   // Documents
@@ -553,10 +593,10 @@ const TEAM_TEMPLATES: Record<string, { related: string[]; templates: Template[] 
     ],
   },
   web: {
-    related: ['proj-indus-portal', 'proj-saffron-ordering'],
+    related: ['proj-indus-portal', 'proj-orbit-portal'],
     templates: [
       ['task', 'Live shipment tracking websocket', 'jira'],
-      ['task', 'Kitchen display: order bump bar', 'linear'],
+      ['task', 'Orbit portal: bulk leave approval', 'linear'],
       ['thread', '#web: Next.js upgrade plan', 'slack'],
       ['document', 'Frontend performance budget', 'notion'],
       ['task', 'Support ticket triage view', 'jira'],
@@ -578,13 +618,13 @@ const TEAM_TEMPLATES: Record<string, { related: string[]; templates: Template[] 
     templates: [
       ['task', 'Arc v3: data table component', 'figma'],
       ['document', 'Kestrel onboarding usability findings', 'notion'],
-      ['task', 'Saffron menu photography guidelines', 'figma'],
+      ['task', 'Orbit portal empty states', 'figma'],
       ['thread', '#design: icon set licensing', 'slack'],
       ['task', 'Arc v3 dark-mode tokens', 'figma'],
     ],
   },
   'client-success': {
-    related: ['client-kestrel', 'client-indus', 'client-saffron'],
+    related: ['client-kestrel', 'client-indus', 'client-orbit'],
     templates: [
       ['meeting', 'Client health review', 'google_meet'],
       ['task', 'Monthly status report to client', 'google_docs'],
@@ -594,10 +634,10 @@ const TEAM_TEMPLATES: Record<string, { related: string[]; templates: Template[] 
     ],
   },
   qa: {
-    related: ['proj-saffron-ordering', 'proj-kestrel-v2'],
+    related: ['proj-orbit-portal', 'proj-kestrel-v2'],
     templates: [
       ['task', 'Regression suite: payments', 'jira'],
-      ['document', 'UAT test cases — Saffron', 'google_drive'],
+      ['document', 'UAT test cases — Orbit HR', 'google_drive'],
       ['task', 'Device lab: iOS 18 sweep', 'jira'],
       ['thread', '#qa: flaky Cypress tests', 'slack'],
     ],
@@ -621,12 +661,12 @@ const TEAM_TEMPLATES: Record<string, { related: string[]; templates: Template[] 
     ],
   },
   finance: {
-    related: ['client-indus'],
+    related: ['client-indus', 'doc-tools-spend'],
     templates: [
-      ['task', 'September payroll reconciliation', 'quickbooks'],
+      ['task', 'Match AWS and Alibaba Cloud invoices', 'quickbooks'],
       ['document', 'Q3 receivables ageing', 'google_drive'],
-      ['task', 'Issue October invoices', 'quickbooks'],
-      ['thread', 'Email: bank FX rate query', 'gmail'],
+      ['task', 'Issue October client invoices', 'quickbooks'],
+      ['thread', 'Email: GitHub seats invoice', 'gmail'],
     ],
   },
   people: {
@@ -635,7 +675,7 @@ const TEAM_TEMPLATES: Record<string, { related: string[]; templates: Template[] 
       ['task', 'Schedule backend candidate screens', 'google_calendar'],
       ['document', 'Onboarding checklist', 'notion'],
       ['thread', '#general: Q4 town hall', 'slack'],
-      ['task', 'Laptop procurement for new hires', 'clickup'],
+      ['task', 'Set up accounts for new hires', 'clickup'],
     ],
   },
 };

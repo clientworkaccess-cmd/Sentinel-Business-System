@@ -200,18 +200,18 @@ Barq Digital`,
     ],
   },
 
-  'mtg-saffron-uat-prep': {
-    id: 'mtg-saffron-uat-prep',
+  'mtg-orbit-uat-prep': {
+    id: 'mtg-orbit-uat-prep',
     time: '12:15',
     durationMin: 25,
-    decisions: ['UAT runs Oct 7–9 at the Gulberg and DHA branches.', 'Kitchen display ships a large-font mode before UAT.'],
+    decisions: ["UAT runs Oct 7–9 with Orbit's HR team.", 'Bulk approval for leave requests ships before UAT.'],
     actions: [
-      { id: 'a-saf-1', text: 'Add large-font mode to the kitchen display', ownerId: 'maryam-aslam', due: '2026-10-06', status: 'open' },
-      { id: 'a-saf-2', text: 'Run UAT with Saffron kitchen staff', ownerId: 'sadia-batool', due: '2026-10-07', status: 'open', itemId: 'task-saffron-uat' },
+      { id: 'a-orb-1', text: 'Add bulk approval to the leave requests screen', ownerId: 'maryam-aslam', due: '2026-10-06', status: 'open' },
+      { id: 'a-orb-2', text: 'Run UAT with the Orbit HR team', ownerId: 'sadia-batool', due: '2026-10-07', status: 'open', itemId: 'task-orbit-uat' },
     ],
     transcript: [
-      { speaker: 'komal-rizvi', at: '00:02:30', text: 'Kitchen staff read the screen from two metres away. The order text is too small.' },
-      { speaker: 'maryam-aslam', at: '00:03:15', text: 'Large-font mode bana deti hoon, Monday tak ho jayega.' },
+      { speaker: 'komal-rizvi', at: '00:02:30', text: 'Their HR managers approve about fifty leave requests every Monday, one at a time. They asked for bulk approval.' },
+      { speaker: 'maryam-aslam', at: '00:03:15', text: 'Bulk approve bana deti hoon, Monday tak ho jayega.' },
     ],
   },
 
