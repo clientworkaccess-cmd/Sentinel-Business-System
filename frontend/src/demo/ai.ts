@@ -140,7 +140,7 @@ export const AI_APPROVALS: AiApproval[] = [
     to: 'procurement@indusfreight.pk', subject: 'Your 2027 renewal: 10% off',
     body: 'Hi Farhan,\n\nWe can offer 10% off your 2027 renewal if signed by Oct 31.\n\nBest,\nMahnoor',
     rule: 'Price or discount to a client',
-    context: 'Leadership agreed on 5%, not 10% (Oct 2). Invoice INV-2291 is 45 days overdue.',
+    context: 'Leadership agreed on 5%, not 10% (Oct 1). Invoice INV-2291 is 45 days overdue.',
     risk: 'act_now', waitingMin: 14, escalatedToId: 'syed-muhammad-saif',
   },
   {
